@@ -76,22 +76,60 @@ aux4 = fit_fmm_unit(analytic_data_matrix = remainder,
 
 unit_a = aux4.x[0]+1j*aux4.x[1]
 
+# abs(unit_a)
+# np.angle(unit_a)
+
+
+#%%
 
 
 
+#%%
+from fit_fmm_k import fit_fmm_k
+from timeit import timeit
+from cProfile import Profile
+from pstats import SortKey, Stats
 
+#%%
+with Profile() as profile:
+    fit_fmm_k(analytic_data_matrix = analytic_data_matrix, n_back=10,
+              time_points = time_points, omega_grid = omega_grid, 
+              weights=np.ones(11))
+    (Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats())
+    
+    '''
+    Conclusiones:
+        - Cuello de botella en el step de optimización
+        - usando numba disminuye mucho el tiempo
+        - la opción'xatol' no parece afectar al tiempo  
+    '''
+    
+#%%
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+with Profile() as profile:
+    fit_fmm_k(analytic_data_matrix = analytic_data_matrix, n_back=10,
+              time_points = time_points, omega_grid = omega_grid, 
+              weights=np.ones(11), post_optimize=False)
+    (Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats())
+    
+    '''
+    Mismos datos, comparacion Codigo1 (AFD), Codigo2 (Nuestro).
+        
+    Tiempo Codigo1:
+    31723 function calls (31648 primitive calls) in 0.128 seconds
+    
+    Tiempo Codigo2 (sin optim):
+    4301 function calls (4270 primitive calls) in 0.048 seconds
+    
+    Tiempo Codigo2 (con optim):
+    102241 function calls (102210 primitive calls) in 0.298 seconds
+    
+    '''
+    
+    
+    
+    
+    
+    
+    
+    

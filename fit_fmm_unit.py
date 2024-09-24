@@ -46,9 +46,9 @@ def fit_fmm_unit(analytic_data_matrix, time_points=None,
     # distinta en cada canal (lo repiten n_ch veces). Los time_points los 
     # asumimos iguales en cada canal y también el grid, la base para fft...
     
-    nCh, n_obs = analytic_data_matrix.shape
+    n_ch, n_obs = analytic_data_matrix.shape
     fmm_grid = np.meshgrid(omega_grid, time_points)
-    afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]+np.pi))
+    afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]))
 
     modules_grid = (1-omega_grid)/(1+omega_grid)*np.exp(1j*0)
     an_search_len = modules_grid.shape[0]
@@ -87,7 +87,7 @@ def fit_fmm_unit(analytic_data_matrix, time_points=None,
     
     abs_coefs = 0
     # Paso del grid, nodos aproximados por fft
-    for ch_i in range(nCh):
+    for ch_i in range(n_ch):
         #abs_coefs += np.abs(ifft(pymat.repmat(fft(analytic_data_matrix[ch_i, :], n_obs), an_search_len, 1) * base, n_obs, 1))
         abs_coefs += np.abs(ifft(np.repeat(fft(analytic_data_matrix[ch_i, :], n_obs)[np.newaxis, :], an_search_len, axis=0) * base, n_obs, 1))
     
@@ -96,11 +96,8 @@ def fit_fmm_unit(analytic_data_matrix, time_points=None,
     max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
     best_a = afd_grid[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
     
-    
-    print("FLAG")
-    
     # -------------------- DEVELOPING --------------------
-    
+
     res = minimize(inner_products_sum, x0=split_complex(best_a), 
                    args=(analytic_data_matrix, time_points, weights), 
                    method='nelder-mead', options={'xatol': 1e-8, 'disp': True})

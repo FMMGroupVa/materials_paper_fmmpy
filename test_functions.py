@@ -19,9 +19,11 @@ from auxiliar_functions import seq_times
 #%%
 df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\Patient1.csv')
 df = df.iloc[:,350:850]
+
 time_points = np.linspace(0, 2 * np.pi, num=df.shape[1]+1)[:-1]
 
 analytic_data_matrix = sc.hilbert(df, axis = 1)
+n_ch, n_obs = analytic_data_matrix.shape
 
 #%%
 '''
@@ -50,7 +52,7 @@ plt.show()
 
 '''
 #%%
-from fit_fmm_unit import fit_fmm_unit, szego
+from fit_fmm_unit import fit_fmm_unit
 
 #%%
 # omega_grid = np.array([0.05, 0.1, 0.15, 0.2, 0.5, 1])
@@ -79,36 +81,33 @@ unit_a = aux4.x[0]+1j*aux4.x[1]
 # abs(unit_a)
 # np.angle(unit_a)
 
+#%% COMPROBACION DEL AJUSTE 
 
-#%%
+from fit_fmm_k import fit_fmm_k
 
+n_back = 5
+a, coefs, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
+                             n_back=n_back, time_points=time_points, 
+                             omega_grid=omega_grid, 
+                             weights=np.ones(n_ch), post_optimize=True)
 
+#%% PLOT DATA VS PREDICTION (UN CANAL)
 
-#%%
+plt.plot(time_points, analytic_data_matrix[0].real, color='blue')
+plt.plot(time_points, prediction[0].real, color='red')
+plt.show()
+
+#%% PROFILING 
 from fit_fmm_k import fit_fmm_k
 from timeit import timeit
 from cProfile import Profile
 from pstats import SortKey, Stats
-
-#%%
-with Profile() as profile:
-    fit_fmm_k(analytic_data_matrix = analytic_data_matrix, n_back=10,
-              time_points = time_points, omega_grid = omega_grid, 
-              weights=np.ones(11))
-    (Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats())
-    
-    '''
-    Conclusiones:
-        - Cuello de botella en el step de optimización
-        - usando numba disminuye mucho el tiempo
-        - la opción'xatol' no parece afectar al tiempo  
-    '''
     
 #%%
 
 with Profile() as profile:
-    fit_fmm_k(analytic_data_matrix = analytic_data_matrix, n_back=10,
-              time_points = time_points, omega_grid = omega_grid, 
+    fit_fmm_k(analytic_data_matrix=analytic_data_matrix, n_back=10,
+              time_points=time_points, omega_grid=omega_grid, 
               weights=np.ones(11), post_optimize=False)
     (Stats(profile).strip_dirs().sort_stats(SortKey.CALLS).print_stats())
     
@@ -126,10 +125,15 @@ with Profile() as profile:
     
     '''
     
-    
-    
-    
-    
-    
-    
-    
+    '''
+    Conclusiones:
+        - Cuello de botella en el step de optimización
+        - usando numba disminuye mucho el tiempo
+        - la opción'xatol' no parece afectar al tiempo  
+    '''
+
+#%%
+
+
+
+

@@ -7,7 +7,7 @@ Created on Thu Sep 19 09:46:50 2024
 
 import numpy as np
 from numpy.fft import fft, ifft
-from scipy.optimize import minimize
+from scipy.optimize import minimize, Bounds
 from numba import jit
 from auxiliar_functions import seq_times, szego, mobius, predict
 
@@ -48,9 +48,23 @@ def inner_products_sum_2(splitted_a, analytic_data_matrix, t, weights):
             analytic_data_matrix[ch_i,:].conj().T))) ** 2) 
         for ch_i in range(analytic_data_matrix.shape[0])])
 
+def inner_products_sum_3(splitted_a, analytic_data_matrix, t, weights):
+    a = splitted_a[0]*np.exp(1j*splitted_a[1])
+    if abs(a)>=1:
+        return float('inf')
+    
+    return -sum([weights[ch_i]*(abs(
+        np.conj(szego(a, t).dot(
+            analytic_data_matrix[ch_i,:].conj().T))) ** 2) 
+        for ch_i in range(analytic_data_matrix.shape[0])])
+
 @jit
 def split_complex(z): 
     return ((z.real, z.imag))
+
+@jit
+def split_complex2(z): 
+    return ((np.mod(z), np.angle(z)))
 
 def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, 
               omega_grid=None, weights=None, post_optimize=True):
@@ -60,7 +74,9 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None,
     # Grid definition.
     fmm_grid = np.meshgrid(omega_grid, time_points)
     afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]))
-
+    
+    param_bounds = np.Bounds([0, -np.pi], [1-1e-05, np.pi])
+    
     modules_grid = (1-omega_grid)/(1+omega_grid)*np.exp(1j*0)
     an_search_len = modules_grid.shape[0]
     
@@ -112,7 +128,8 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None,
             res = minimize(
                 inner_products_sum_2, x0=split_complex(best_a), 
                 args=(remainder, time_points, weights), 
-                method='BFGS', options={'disp': False})
+                method='trust-constr', options={'disp': False},
+                constraints=[param_bounds])
             
             opt_a = res.x[0] + 1j*res.x[1]
             a_parameters[k+1] = opt_a

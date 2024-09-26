@@ -87,9 +87,9 @@ from fit_fmm_k import fit_fmm_k
 
 n_back = 5
 a, coefs, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
-                             n_back=n_back, time_points=time_points, 
-                             omega_grid=omega_grid, 
-                             weights=np.ones(n_ch), post_optimize=True)
+                                 n_back=n_back, time_points=time_points, 
+                                 omega_grid=omega_grid, 
+                                 weights=np.ones(n_ch), post_optimize=True)
 
 #%% PLOT DATA VS PREDICTION (UN CANAL)
 
@@ -113,7 +113,7 @@ with Profile() as profile:
     
     '''
     Mismos datos, comparacion Codigo1 (AFD), Codigo2 (Nuestro).
-        
+    
     Tiempo Codigo1:
     31723 function calls (31648 primitive calls) in 0.128 seconds
     
@@ -134,6 +134,6 @@ with Profile() as profile:
 
 #%%
 
-
-
+# import auxiliar_functions as aux_fun
+# aux_fun.phiMatrix(a[2:])
 

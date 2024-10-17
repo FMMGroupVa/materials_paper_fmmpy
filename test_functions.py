@@ -84,18 +84,34 @@ unit_a = aux4.x[0]+1j*aux4.x[1]
 #%% COMPROBACION DEL AJUSTE 
 
 from fit_fmm_k import fit_fmm_k
+from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix
+
+time_points = seq_times(500)
 
 n_back = 5
 a, coefs, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
                                  n_back=n_back, time_points=time_points, 
-                                 omega_grid=omega_grid, 
-                                 weights=np.ones(n_ch), post_optimize=True)
+                                 omega_grid=omega_grid,
+                                 weights=np.ones(n_ch), post_optimize=False)
+
+prediction2 = predict(a[1:], coefs[:,1:], time_points)
+
 
 #%% PLOT DATA VS PREDICTION (UN CANAL)
 
-plt.plot(time_points, analytic_data_matrix[0].real, color='blue')
-plt.plot(time_points, prediction[0].real, color='red')
+plt.plot(time_points[0], analytic_data_matrix[0].real, color='blue')
+plt.plot(time_points[0], prediction2[0].real+coefs[0,0].real, color='red')
 plt.show()
+
+#%%
+from auxiliar_functions import predict, predictFMM, transition_matrix
+
+AFD_to_FMM_matrix = transition_matrix(a[1:])
+phis = np.dot(AFD_to_FMM_matrix, coefs.T)
+
+#%%
+yFMM = predictFMM(a[1:], phis[:,1:], seq_times(100))
+
 
 #%% PROFILING 
 from fit_fmm_k import fit_fmm_k
@@ -134,6 +150,33 @@ with Profile() as profile:
 
 #%%
 
-# import auxiliar_functions as aux_fun
-# aux_fun.phiMatrix(a[2:])
+from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix
+
+N = 5;
+
+rad = np.array([0.7, 0.85, 0.9, 0.45, 0.7]);
+alpha = np.array([0.5, np.pi, 2.1, 5, 4.25]);
+
+Cn = np.zeros((1,5), dtype = complex)
+an = rad*np.exp(1j*alpha);
+
+Cn = np.zeros((1,6), dtype = complex)
+coef_fase = np.array([np.pi, 0, np.pi/2, 0, np.pi/2])-alpha;
+Amplitudes = np.array([5, 4, 1, 1, 2.5]);
+Cn[0,1:] = Amplitudes*np.exp(1j*coef_fase);
+Cn[0,0] = 5;
+
+#%%
+
+AFD_to_FMM_matrix = transition_matrix(an)
+phis = np.dot(AFD_to_FMM_matrix, Cn.T)
+
+#%%
+yAFD = predict(an, Cn[:,1:], seq_times(100))
+yFMM = predictFMM(an, phis[:,1:], seq_times(100))
+plt.plot(seq_times(100)[0,:], yAFD[0,:].real, color='blue')
+plt.plot(seq_times(100)[0,:], yFMM[0,:].real, color='red')
+
+
+
 

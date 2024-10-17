@@ -37,7 +37,7 @@ from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix
 time_points = seq_times(500)
 
 n_back = 5
-a, coefs, phis, prediction = fit_fmm_k(
+a, coefs, prediction = fit_fmm_k(
     analytic_data_matrix=analytic_data_matrix, n_back=n_back, 
     time_points=time_points, omega_grid=omega_grid,
     weights=np.ones(n_ch), post_optimize=True)

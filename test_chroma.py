@@ -34,7 +34,7 @@ from fit_fmm_k import fit_fmm_k
 from auxiliar_functions import predict
 
 n_back = 15
-a, coefs, prediction = fit_fmm_k(
+a, coefs, phis, prediction = fit_fmm_k(
     analytic_data_matrix=analytic_data_matrix, n_back=n_back, 
     time_points=time_points, omega_grid=omega_grid,
     weights=np.ones(n_ch), post_optimize=True)
@@ -44,9 +44,10 @@ prediction2 = predict(a, coefs, time_points)
 
 #%% PLOT DATA VS PREDICTION (UN CANAL)
 
-plt.plot(time_points[0], analytic_data_matrix[0].real, color='blue')
+nch = 20
+plt.plot(time_points[0], analytic_data_matrix[nch].real, color='blue')
 #plt.plot(time_points[0], prediction2[0].real+coefs[0,0].real, color='red')
-plt.plot(time_points[0], prediction2[0].real, color='red')
+plt.plot(time_points[0], prediction2[nch].real, color='red')
 plt.show()
 
 

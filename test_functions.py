@@ -150,7 +150,7 @@ with Profile() as profile:
 
 #%%
 
-from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix
+from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix, calculate_xi_matrix
 
 N = 5;
 
@@ -167,13 +167,18 @@ Cn[0,1:] = Amplitudes*np.exp(1j*coef_fase);
 Cn[0,0] = 5;
 
 #%%
+an2 = np.insert(an, 0, 0, axis=0)
 
-AFD_to_FMM_matrix = transition_matrix(an)
-phis = np.dot(AFD_to_FMM_matrix, Cn.T)
+AFD_to_FMM_matrix = transition_matrix(an2)
+
+phis = np.dot(AFD_to_FMM_matrix, Cn.T).T
+
+xi_mat = calculate_xi_matrix(an)
+
 
 #%%
-yAFD = predict(an, Cn[:,1:], seq_times(100))
-yFMM = predictFMM(an, phis[:,1:], seq_times(100))
+yAFD = predict(an2, Cn, seq_times(100))
+yFMM = predictFMM(an2, phis, seq_times(100))
 plt.plot(seq_times(100)[0,:], yAFD[0,:].real, color='blue')
 plt.plot(seq_times(100)[0,:], yFMM[0,:].real, color='red')
 

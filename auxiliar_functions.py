@@ -60,14 +60,12 @@ def predict2(a, analytic_data_matrix, time_points):
 
     return predict(a, coefs, time_points), coefs
 
-
-
 def predictFMM(a, phis, time_points):
 
     n_ch, n_coefs = phis.shape
     n_obs = time_points.shape[1]
 
-    prediction = np.ones((n_ch, n_obs), dtype = complex)*phis[:,0]
+    prediction = np.ones((n_ch, n_obs), dtype = complex) * phis[:,0][:, np.newaxis]
 
     for k in range(1, n_coefs):
         for ch_i in range(n_ch):

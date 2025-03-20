@@ -57,6 +57,9 @@ plt.plot(time_points[0], analytic_data_matrix[0].real, color='blue')
 plt.plot(time_points[0], prediction2[0].real, color='red')
 plt.show()
 
+from auxiliar_functions import predict, predict2, predictFMM, seq_times, transition_matrix
+from fit_fmm_k import fit_fmm_k, fit_fmm_k_mob 
+from fit_fmm_k_restr import fit_fmm_k_restr, fit_fmm_k_mob_restr
 
 #%% RESTRICCIONES
 
@@ -64,9 +67,6 @@ alpha_restrictions = [(np.pi, np.pi+2.5), (np.pi+2.5,2*np.pi), (np.pi+2.5,2*np.p
 omega_restrictions = [(0.001,0.15), (0.001,0.1), (0.001,0.1), (0.001,0.1), (0.001,0.15)]
 
 #%% RESTRICCIONES FIT
-
-from fit_fmm_k import fit_fmm_k, fit_fmm_k_restr
-from auxiliar_functions import predict, predict2, predictFMM, seq_times, transition_matrix
 
 time_points = seq_times(500)
 
@@ -145,7 +145,6 @@ M, delta, gamma = best_pars_linear[0][:,5]
 np.arctan2(-gamma, delta) % (2*np.pi)
 
 #%%
-from fit_fmm_k import fit_fmm_k, fit_fmm_k_mob, fit_fmm_k_mob_restr
 
 df2 = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\Chroma_example.csv').T
 df2 = df2.iloc[0:10,:]
@@ -286,3 +285,50 @@ plt.show()
 
 #%%
 
+import numpy as np
+import pandas as pd
+import scipy.signal as sc
+import matplotlib.pyplot as plt
+import os
+os.chdir(r'C:\Users\Christian\Documents\GitHub\PaquetePython')
+
+import fit_fmm
+from auxiliar_functions import seq_times
+
+#%%
+from fit_fmm_k import fit_fmm_k
+
+df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\datosGOLEM.csv').iloc[:,1:].transpose()
+
+time_points = seq_times(n_obs)
+analytic_data_matrix = sc.hilbert(df, axis = 1)
+n_ch, n_obs = analytic_data_matrix.shape
+
+omega_grid = np.linspace(0.001, 0.2, 50, False)
+n_back = 10
+
+a, coefs, phis, prediction = fit_fmm_k(
+    analytic_data_matrix=analytic_data_matrix, n_back=n_back, max_iter=1,
+    time_points=time_points, omega_grid=omega_grid,
+    weights=np.ones(n_ch), post_optimize=True, omega_min=0.01, omega_max=0.2)
+
+#%%
+for ch in range(n_ch):
+    plt.plot(time_points[0], analytic_data_matrix[ch].real, color='blue')
+    plt.plot(time_points[0], prediction[ch].real, color='red')
+    plt.show()
+    
+#%%
+from auxiliar_functions import szego, mobius
+ch = 13
+prediction = np.ones((n_ch, n_obs), dtype = complex)*coefs[:,0:1]
+blaschke = np.ones((1, n_obs))
+components = np.ones((10, n_obs))
+for k in range(1,n_back+1):
+    comp = coefs[ch,k]*np.exp(1j*time_points)*szego(a[k], time_points)*blaschke
+    components[k-1] = comp.real
+    blaschke = blaschke*mobius(a[k], time_points)
+    plt.plot(time_points[0], comp[0].real, color='purple')
+    plt.show()
+
+np.savetxt("comps_ch13.csv", components.T, delimiter=",", fmt="%.4f")

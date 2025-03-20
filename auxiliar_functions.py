@@ -11,6 +11,11 @@ def szego(a, t):
 def mobius(a, t): 
     return ((np.exp(1j*t) - a)) / (1 - np.conj(a)*np.exp(1j*t))
 
+@jit
+def split_complex(z): 
+    return ((np.angle(z), np.abs(z)))
+
+
 def seq_times(nObs):
     return np.reshape(np.linspace(0, 2 * np.pi, num=nObs+1)[:-1], (1,nObs))
 
@@ -26,7 +31,6 @@ def predict(a, coefs, time_points):
             prediction[ch_i] = prediction[ch_i] + coefs[ch_i,k]*np.exp(1j*time_points)*szego(a[k], time_points)*blaschke
         blaschke = blaschke*mobius(a[k], time_points)
     return prediction
-
 
 # Versión de predict donde los a's están fijos y los coefs se recalculan 
 def predict2(a, analytic_data_matrix, time_points):
@@ -157,3 +161,19 @@ def transition_matrix(an):
 
     return M
 
+#################################################################################
+
+def inner_products_sum(splitted_a, analytic_data_matrix, t, weights):
+    a = splitted_a[1]*np.exp(1j*splitted_a[0])
+    sum_abs = 0
+    for ch_i in range(analytic_data_matrix.shape[0]):
+        sum_abs = sum_abs + weights[ch_i]*(np.abs(np.conj(szego(a, t).dot(analytic_data_matrix[ch_i,:].conj().T))) ** 2)
+    return -np.sum(sum_abs)
+
+# Pensaba que esta version podría ser un poco más rápida que la anterior,
+# no hay diferencias
+def inner_products_sum_2(splitted_a, analytic_data_matrix, t, weights):
+
+    a = splitted_a[1]*np.exp(1j*splitted_a[0])
+    return -sum([weights[ch_i]*(np.abs(np.conj(szego(a, t).dot(analytic_data_matrix[ch_i,:].conj().T))) ** 2) 
+                 for ch_i in range(analytic_data_matrix.shape[0])])

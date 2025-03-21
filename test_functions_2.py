@@ -312,6 +312,7 @@ a, coefs, phis, prediction = fit_fmm_k(
     time_points=time_points, omega_grid=omega_grid,
     weights=np.ones(n_ch), post_optimize=True, omega_min=0.01, omega_max=0.2)
 
+
 #%%
 for ch in range(n_ch):
     plt.plot(time_points[0], analytic_data_matrix[ch].real, color='blue')

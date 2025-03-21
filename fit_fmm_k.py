@@ -111,7 +111,7 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
                 # std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), np.delete(coefs, k, axis=1), time_points)
                 std_remainder = analytic_data_matrix - predict2(np.delete(a_parameters, k, axis=0), analytic_data_matrix, time_points)[0]
 
-                # weights = 1/np.var(std_remainder, axis=1, ddof=1)
+                weights = 1/np.var(std_remainder.real, axis=1, ddof=1)
                 
                 # Calculate the reduced reminder reminder/(z*mob1*...,mobK) (without k)
                 blaschke = blaschke / mobius(a_parameters[k], time_points)

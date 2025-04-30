@@ -40,7 +40,7 @@ from auxiliar_functions import predict, predict2, predictFMM, seq_times, transit
 time_points = seq_times(500)
 
 n_back = 5
-a, coefs, prediction = fit_fmm_k(
+a, coefs, phis, prediction = fit_fmm_k(
     analytic_data_matrix=analytic_data_matrix, n_back=n_back, 
     time_points=time_points, omega_grid=omega_grid,
     weights=np.ones(n_ch), post_optimize=True)
@@ -333,3 +333,31 @@ for k in range(1,n_back+1):
     plt.show()
 
 np.savetxt("comps_ch13.csv", components.T, delimiter=",", fmt="%.4f")
+
+#%%
+df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\ejemploCristina.csv').transpose()
+
+time_points = seq_times(n_obs)
+analytic_data_matrix = sc.hilbert(df, axis = 1)
+n_ch, n_obs = analytic_data_matrix.shape
+
+omega_grid = np.linspace(0.05, 0.9, 25, False)
+n_back = 4
+
+a, coefs, phis, prediction = fit_fmm_k(
+    analytic_data_matrix=analytic_data_matrix, n_back=n_back, max_iter=1,
+    time_points=time_points, omega_grid=omega_grid,
+    weights=np.ones(n_ch), post_optimize=True, omega_min=0.01, omega_max=0.99)
+
+#%%
+plt.plot(time_points[0], analytic_data_matrix[0].real, color='blue')
+#plt.plot(time_points[0], prediction2[0].real+coefs[0,0].real, color='red')
+plt.plot(time_points[0], prediction[0].real, color='green')
+plt.show()
+
+#%%
+
+
+
+
+

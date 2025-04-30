@@ -5,7 +5,6 @@ Created on Wed Mar 12 09:13:49 2025
 @author: Christian
 """
 
-
 import numpy as np
 import pandas as pd
 import scipy.signal as sc
@@ -109,8 +108,7 @@ start = time.perf_counter()
 omega_grid = np.linspace(0.01, 0.15, 50, False)
 a, coefs, phis, prediction2 = fit_fmm_k_restr_betas(
     analytic_data_matrix=analytic_data_matrix2, n_back=n_back, max_iter=max_iter,
-    time_points=time_points2, omega_grid=omega_grid,
-    weights=np.ones(n_ch), post_optimize=False, omega_min=0.005, omega_max=0.2,
+    post_optimize=False, omega_min=0.005, omega_max=0.2,
     beta_min=np.pi-0.1, beta_max=np.pi+0.1)
 end = time.perf_counter()
 
@@ -128,7 +126,7 @@ plt.show()
 from fit_fmm_k_restr import fit_fmm_k_restr_betas
 import cProfile
 
-n_back = 5
+n_back = 1
 max_iter = 1
 
 cProfile.run('fit_fmm_k_restr_betas(analytic_data_matrix=analytic_data_matrix2, n_back=n_back, max_iter=max_iter,time_points=time_points2, omega_grid=omega_grid,weights=np.ones(n_ch), post_optimize=False, beta_min=np.pi-0.1, beta_max=np.pi+0.1)')

@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 import os
 os.chdir(r'C:\Users\Christian\Documents\GitHub\PaquetePython')
 
-import fit_fmm
+from fit_fmm import fit_fmm
 # from  fit_fmm_unit import fit_fmm_unit
 from auxiliar_functions import seq_times
 
 #%%
-df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\Patient1.csv')
+df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\Patient1.csv', header=None)
 df = df.iloc[:,350:850]
 
 time_points = np.linspace(0, 2 * np.pi, num=df.shape[1]+1)[:-1]
@@ -51,6 +51,14 @@ plt.plot(aux3.real, aux3.imag, 'o', color='blue')
 plt.show()
 
 '''
+from fit_fmm import fit_fmm
+
+res = fit_fmm(data_matrix=df, n_back=5, max_iter=5, post_optimize=False, 
+              omega_min=0.01, omega_max=0.99)
+
+#%%
+res.plot_predictions(channels = [0,1,2,3], dpi=300)
+
 #%%
 from fit_fmm_unit import fit_fmm_unit
 
@@ -89,12 +97,12 @@ from auxiliar_functions import predict, predictFMM, seq_times, transition_matrix
 time_points = seq_times(500)
 
 n_back = 5
-a, coefs, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
+a, coefs, phis, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
                                  n_back=n_back, time_points=time_points, 
                                  omega_grid=omega_grid,
                                  weights=np.ones(n_ch), post_optimize=False)
 
-prediction2 = predict(a[1:], coefs[:,1:], time_points)
+prediction2 = predict(a, coefs, time_points)
 
 
 #%% PLOT DATA VS PREDICTION (UN CANAL)
@@ -106,7 +114,7 @@ plt.show()
 #%%
 from auxiliar_functions import predict, predictFMM, transition_matrix
 
-AFD_to_FMM_matrix = transition_matrix(a[1:])
+AFD_to_FMM_matrix = transition_matrix(a)
 phis = np.dot(AFD_to_FMM_matrix, coefs.T)
 
 #%%

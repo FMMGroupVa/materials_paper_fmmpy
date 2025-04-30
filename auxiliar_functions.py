@@ -75,6 +75,20 @@ def predictFMM(a, phis, time_points):
             prediction[ch_i] = prediction[ch_i] + phis[ch_i, k]*mobius(a[k], time_points)
     return prediction
 
+
+# SIN PROBAR (!)
+def extract_waves(a, phis, time_points):
+
+    n_ch, n_coefs = phis.shape
+    n_obs = time_points.shape[1]
+
+    waves = [np.zeros((n_coefs, n_obs))]*n_ch
+    
+    for k in range(1, n_coefs):
+        for ch_i in range(n_ch):
+            waves[ch_i][k,:] = (phis[ch_i, k]*mobius(a[k], time_points)).real
+            
+    return waves
 ###############################################################################
 
 def beta0(a1, a2):

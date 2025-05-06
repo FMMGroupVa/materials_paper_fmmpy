@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 30 10:23:10 2025
-
 @author: Christian
 """
 
@@ -23,18 +21,19 @@ def generate_G(p, a, b):
         G[2*var+1, 2*var+2] = -np.cos(b)
     return G
 
-
-
 df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\example_Fe2p.csv')
 df = df.iloc[:,1:5].T
 import scipy.signal as sc
 analytic_data_matrix = sc.hilbert(df, axis = 1)
 data_matrix = analytic_data_matrix.real
 
-a = np.array([0.+0.j,  
-              0.091115  -0.86093484j,  
-              0.62488678-0.62411581j,-0.14142367-0.43487863j,  
-              0.26917202-0.88078132j])
+# a = np.array([0.+0.j,  
+#               0.091115  -0.86093484j,  
+#               0.62488678-0.62411581j,-0.14142367-0.43487863j,  
+#               0.26917202-0.88078132j])
+
+a = np.array([0.        +0.j        , 0.54682438-0.64607446j])
+
 n_ch, n_obs = df.shape
 time_points = seq_times(n_obs)
 beta_min = np.pi-0.5
@@ -69,10 +68,24 @@ for ch_i in range(n_ch):
 
 # 6. Compute betas, amplitudes, and phis using vectorized operations
 betas = np.arctan2(-RLS[:, 2::2], RLS[:, 1::2]) % (2*np.pi)
-print(betas)
 amplitudes = np.sqrt(RLS[:, 1::2] ** 2 + RLS[:, 2::2] ** 2)
 
-print(amplitudes)
+phis[:, 0] = RLS[:, 0]
+phis[:, 1:] = amplitudes * np.exp(1j * (betas - alphas))
+
+coefs2 = np.dot(np.linalg.inv(transition_matrix(a)), phis.T).T
+
+phis2 = np.dot(transition_matrix(a), coefs2.T).T
+
+prediction = np.dot(DM, RLS.T)
+
+res_sq = (data_matrix - prediction.T)**2
+
+rss_ch = np.sum(res_sq, axis=1)  # shape (4,)
+
+
+
+
 
 
 

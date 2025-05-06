@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-
 import numpy as np
 import pandas as pd 
 import scipy.signal as sc
@@ -44,10 +43,7 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
         time_points = seq_times(data_matrix.shape[1])
     analytic_data_matrix = sc.hilbert(data_matrix, axis = 1)
     
-    
     ###########################################################################
-    
-    
     
     # Grid definition.
     fmm_grid = np.meshgrid(omega_grid, time_points)
@@ -62,7 +58,6 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
         base[i,:] = fft(szego(modules_grid[i], time_points), n_obs)
     
     # Parameters (AFD)
-
     if alpha_restrictions is None and omega_restrictions is None and beta_min is None and beta_max is None:
     
         a, coefs, phis, prediction = fit_fmm_k(analytic_data_matrix=analytic_data_matrix, 
@@ -72,13 +67,14 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
                                                omega_min=omega_min, omega_max=omega_max)
     
     elif beta_min is None and beta_max is None:
-    
+        print("Restricted alphas-omegas")
         a, coefs, phis, prediction = fit_fmm_k_restr(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter,
                                                      omega_grid=omega_grid, weights=np.ones(n_ch), post_optimize=post_optimize, 
                                                      omega_min=omega_min, omega_max=omega_max, 
                                                      alpha_restrictions=alpha_restrictions, omega_restrictions=omega_restrictions)
         
     elif alpha_restrictions is None and omega_restrictions is None:
+        print("Restricted betas")
         a, coefs, phis, prediction = fit_fmm_k_restr_betas(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter, 
                                                            omega_grid=omega_grid, weights=np.ones(n_ch), post_optimize=post_optimize, 
                                                            omega_min = omega_min, omega_max=omega_max, 

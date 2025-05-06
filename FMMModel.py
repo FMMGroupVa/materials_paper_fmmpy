@@ -18,12 +18,12 @@ class FMMModel:
         
         self.data = data
         self.time_points = time_points
-        self.prediction = prediction
+        self.prediction = prediction.real
         self.params = params
         self.n_ch, self.n_obs = data.shape
         self.n_back = len(params['alpha'])
         var_data = np.var(data, axis=1)
-        var_error = np.var(data-prediction, axis=1)
+        var_error = np.var(data-prediction.real, axis=1)
         self.sigma = np.sqrt(var_error)
         self.R2 = 1-var_error/var_data
         
@@ -117,7 +117,7 @@ class FMMModel:
     
     
     def plot_components(self, n_obs=None, channels=None, channel_names=None, n_cols=None,
-                    save_path=None, height=None, width=None, dpi=None):
+                        save_path=None, height=None, width=None, dpi=None):
     
         # Selección de canales
         if channels is None:
@@ -210,8 +210,6 @@ class FMMModel:
         
         alpha_block = np.vstack(alpha_block)
         omega_block = np.vstack(omega_block)
-        
-        
         
         F0 = np.hstack([intercepts_block, alpha_block, omega_block, delta_block_diag, gamma_block_diag])
         

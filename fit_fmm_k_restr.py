@@ -176,7 +176,7 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
         ## STEP 2: Postoptimization - Profile log-likelihood.
         if(post_optimize):
             # We transform time points as: ---[+++]-----  ->  [+++]--------
-            time_points_transformed = time_points - alpha_restrictions[k-1][0] 
+            time_points_transformed = time_points - alpha_restrictions_2[k-1][0] 
             # Lower values than the general omega_min are not allowed
             omega_min_opt = max(omega_min, omega_restrictions[k-1][0])
             omega_max_opt = min(omega_max, omega_restrictions[k-1][1])
@@ -191,7 +191,7 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
                          (1-omega_min_opt)/(1+omega_min_opt))],
                 tol=1e-4, options={'disp': False})
             opt_a = res.x[1]*np.exp(1j*res.x[0])
-            a_parameters[k] = opt_a * np.exp(1j*alpha_restrictions[k-1][0]) # alpha + alphamin
+            a_parameters[k] = opt_a * np.exp(1j*alpha_restrictions_2[k-1][0]) # alpha + alphamin
         else:
             a_parameters[k] = best_a
         

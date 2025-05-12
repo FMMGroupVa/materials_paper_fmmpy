@@ -137,6 +137,9 @@ class FMMModel:
             height = 3 * n_rows
         if width is None:
             width = 4 * n_cols
+            
+        fig_area = width * height
+        base_fontsize = max(6, min(12, fig_area * 0.1))
         
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(width, height),
                                  squeeze=False, dpi=dpi, constrained_layout=True)
@@ -165,17 +168,17 @@ class FMMModel:
                 # Título
                 if channel_names is not None and ch < len(channel_names):
                     name = channel_names[ch]
-                    ax.set_title(f"{name}")
+                    ax.set_title(f"{name}", fontsize=base_fontsize + 2)
                 else:
-                    ax.set_title(f"Channel {ch}")
+                    ax.set_title(f"Channel {ch}", fontsize=base_fontsize + 2)
                 
                 ax.grid(True)
                 ax.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
                 ax.set_xticklabels([])
                 ax.tick_params(axis='x', which='both', length=0)
-                ax.tick_params(axis='y', labelsize=10)
+                ax.tick_params(axis='y', labelsize=base_fontsize)
             else:
-                ax.set_title(f"Channel {ch} (out of range)")
+                ax.set_title(f"Channel {ch} (out of range)", fontsize=base_fontsize)
                 ax.axis("off")
     
         # Apagar subplots sobrantes

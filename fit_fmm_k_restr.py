@@ -15,9 +15,9 @@ from qpsolvers import solve_ls, solve_qp
 
 from scipy.optimize import linprog # Eliminar
 
-def RSS_restr_betas(splitted_a, analytic_data_matrix, time_points, k, a_parameters, weights, beta_min, beta_max):
+def RSS_restr_betas(splitted_a, data_matrix, time_points, k, a_parameters, weights, beta_min, beta_max):
     a_parameters[k] = splitted_a[1]*np.exp(1j*splitted_a[0])
-    return project_betas_2(analytic_data_matrix.real, weights, time_points, a_parameters, beta_min, beta_max)
+    return project_betas_2(data_matrix, weights, time_points, a_parameters, beta_min, beta_max)
 
 # Generates a matrix with p restrictions (between a and b)
 def generate_G(p, a, b):
@@ -63,7 +63,6 @@ def project_betas(data_matrix, time_points, a, beta_min, beta_max):
     # Return AFD coefs
     return np.dot(np.linalg.inv(transition_matrix(a)), phis.T).T
 
-
 def project_betas_2(data_matrix, weights, time_points, a, beta_min, beta_max):
     
     n_back = len(a) - 1
@@ -99,7 +98,8 @@ def project_betas_2(data_matrix, weights, time_points, a, beta_min, beta_max):
 def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
                     omega_grid=None, weights=None, post_optimize=True, 
                     omega_min = 0.001, omega_max=0.999, 
-                    alpha_restrictions=None, omega_restrictions=None):
+                    alpha_restrictions=None, omega_restrictions=None, 
+                    group_restrictions=None):
     
     if(analytic_data_matrix.ndim == 2):
         n_ch, n_obs = analytic_data_matrix.shape
@@ -145,67 +145,82 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
         weights[ch_i] = 1/data_norm[ch_i] # sigmas^2
     
     ## 1 Iteration of the backfitting algorithm: fit k waves
-    for k in range(1, n_back+1):
+    # for k in range(1, n_back+1):
         
-        basek = base[(omega_grid>omega_restrictions[k-1][0]) & (omega_grid<omega_restrictions[k-1][1])]
-        an_search_len_restr = basek.shape[0]
-        ## STEP 1: Grid search - AFD-FFT formulations
-        abs_coefs = 0
-        for ch_i in range(n_ch):
-            #abs_coefs += np.abs(ifft(pymat.repmat(fft(analytic_data_matrix[ch_i, :], n_obs), an_search_len, 1) * base, n_obs, 1))
-            abs_coefs += weights[ch_i]*np.abs(ifft(np.repeat(fft(
-                remainder[ch_i, :], n_obs)[np.newaxis, :], 
-                an_search_len_restr, axis=0) * basek, n_obs, 1))
-        abs_coefs = abs_coefs.T # n_obs x n_omegas
+    unique_groups = sorted(set(group_restrictions))
+    for k_idx, k_val in enumerate(unique_groups):
+        indices_k = [i for i, g in enumerate(group_restrictions) if g == k_val]
+        k = k_idx+1
         
-        # Best a: we only select alphas in the restricted arc
-        afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[k-1][0]) & (omega_grid<omega_restrictions[k-1][1])]
-        if(alpha_restrictions_2[k-1][0] > alpha_restrictions_2[k-1][1]):
-            # +++]--------[+++
-            abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[k-1][0]) | (time_points[0]<=alpha_restrictions_2[k-1][1]) ]
-            afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[k-1][0]) | (time_points[0]<=alpha_restrictions_2[k-1][1]) ]
-        else:
-            # ------[++++]----
-            abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[k-1][0]) & (time_points[0]<=alpha_restrictions_2[k-1][1]) ]
-            afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[k-1][0]) & (time_points[0]<=alpha_restrictions_2[k-1][1]) ]
+        best_sum_abs_coef = -np.inf
+        best_a = None
+            
+        for i in indices_k:
+            
+            # 1. Aplicar restricción omega: restringir basek, afd_grid2 y abs_coefs
+            basek = base[(omega_grid > omega_restrictions[i][0]) & (omega_grid < omega_restrictions[i][1])]
+            afd_grid2 = afd_grid[:, (omega_grid > omega_restrictions[i][0]) & (omega_grid < omega_restrictions[i][1])]
+            abs_coefs = 0
+            for ch_i in range(n_ch):
+                abs_coefs += weights[ch_i] * np.abs(ifft(
+                    np.repeat(fft(remainder[ch_i, :], n_obs)[np.newaxis, :], basek.shape[0], axis=0) * basek, n_obs, 1))
+    
+            abs_coefs = abs_coefs.T  # n_obs x n_omegas
         
-        max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
-        best_a = afd_grid2[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
-
-
-        ## STEP 2: Postoptimization - Profile log-likelihood.
-        if(post_optimize):
-            # We transform time points as: ---[+++]-----  ->  [+++]--------
-            time_points_transformed = time_points - alpha_restrictions[k-1][0] 
-            # Lower values than the general omega_min are not allowed
-            omega_min_opt = max(omega_min, omega_restrictions[k-1][0])
-            omega_max_opt = min(omega_max, omega_restrictions[k-1][1])
-            # Optimization routine
-            res = minimize(
-                inner_products_sum_2, x0=split_complex(best_a), 
-                args=(remainder, time_points_transformed, weights), 
-                method='L-BFGS-B', 
-                bounds=[(0, # alphamin - alphamin
-                        (alpha_restrictions_2[k-1][1] - alpha_restrictions_2[k-1][0]) % (2*np.pi)), # alphamax - alphamin
-                        ((1-omega_max_opt)/(1+omega_max_opt), 
-                         (1-omega_min_opt)/(1+omega_min_opt))],
-                tol=1e-4, options={'disp': False})
-            opt_a = res.x[1]*np.exp(1j*res.x[0])
-            a_parameters[k] = opt_a * np.exp(1j*alpha_restrictions[k-1][0]) # alpha + alphamin
-        else:
-            a_parameters[k] = best_a
+            # Best a: we only select alphas in the restricted arc
+            afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[i][0]) & (omega_grid<omega_restrictions[i][1])]
+            if(alpha_restrictions_2[i][0] > alpha_restrictions_2[i][1]):
+                # +++]--------[+++
+                abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[i][0]) | (time_points[0]<=alpha_restrictions_2[i][1]) ]
+                afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[i][0]) | (time_points[0]<=alpha_restrictions_2[i][1]) ]
+            else:
+                # ------[++++]----
+                abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[i][0]) & (time_points[0]<=alpha_restrictions_2[i][1]) ]
+                afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[i][0]) & (time_points[0]<=alpha_restrictions_2[i][1]) ]
+            
+            max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
+            best_a_tmp = afd_grid2[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
+    
+    
+            ## STEP 2: Postoptimization - Profile log-likelihood.
+            if(post_optimize):
+                # We transform time points as: ---[+++]-----  ->  [+++]--------
+                # (Easier way to impose arc restrictions in circular parameters)
+                time_points_transformed = time_points - alpha_restrictions_2[i][0] 
+                # Lower values than the general omega_min are not allowed
+                omega_min_opt = max(omega_min, omega_restrictions[i][0])
+                omega_max_opt = min(omega_max, omega_restrictions[i][1])
+                # Optimization routine
+                res = minimize(
+                    inner_products_sum_2, x0=split_complex(best_a_tmp), 
+                    args=(remainder, time_points_transformed, weights), 
+                    method='L-BFGS-B', 
+                    bounds=[(0, # alphamin - alphamin
+                            (alpha_restrictions_2[i][1] - alpha_restrictions_2[i][0]) % (2*np.pi)), # alphamax - alphamin
+                            ((1-omega_max_opt)/(1+omega_max_opt), 
+                             (1-omega_min_opt)/(1+omega_min_opt))],
+                    tol=1e-4, options={'disp': False})
+                opt_a = res.x[1]*np.exp(1j*res.x[0])
+                best_a_tmp = opt_a * np.exp(1j*alpha_restrictions_2[i][0]) # alpha2 + alphamin
+ 
+            # Coefficient calculations 
+            szego_a = szego(best_a_tmp, time_points)
+            sum_abs_coefs = 0
+            for ch_i in range(n_ch):
+                sum_abs_coefs =+ weights[ch_i]*np.abs(np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs)[0]
+            
+            if sum_abs_coefs > best_sum_abs_coef:
+                best_sum_abs_coef = sum_abs_coefs
+                best_a = best_a_tmp
+            
+        a_parameters[k] = best_a
         
-        # Coefficient calculations 
         szego_a = szego(a_parameters[k], time_points)
         for ch_i in range(n_ch):
             coefs[ch_i, k] = np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs
             remainder[ch_i,:] = ((remainder[ch_i,:] - coefs[ch_i,k]*szego_a) 
                                  / mobius(a_parameters[k], time_points))
         
-        AFD2FMM_matrix = transition_matrix(a_parameters[0:k+1])
-        for ch_i in range(n_ch):    
-            phis[ch_i, 0:k+1] = np.dot(AFD2FMM_matrix, coefs[ch_i, 0:k+1].T).T
-    
     if max_iter > 1:
         for iter_j in range(1, max_iter):
             # Auxiliar Blaschke product: z*Bl_{a_1,...,a_K} = z*m(a1,t)*...*m(aK,t)
@@ -213,7 +228,14 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
             for k in range(1, n_back+1):
                 blaschke = blaschke*mobius(a_parameters[k], time_points)
         
-            for k in range(1, n_back+1):
+            # for k in range(1, n_back+1):
+            for k_idx, k_val in enumerate(unique_groups):
+                indices_k = [i for i, g in enumerate(group_restrictions) if g == k_val]
+                k = k_idx+1
+                
+                best_sum_abs_coef = -np.inf
+                best_a = None
+                
                 # Calculate the standard reminder (data-prediction) without component k:  r = X - sum ci*Bi, i != k
                 # std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), np.delete(coefs, k, axis=1), time_points)
                 std_remainder = analytic_data_matrix - predict2(np.delete(a_parameters, k, axis=0), analytic_data_matrix, time_points)[0]
@@ -226,53 +248,64 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
                 # Reduced reminder (to calculate )
                 remainder = std_remainder / blaschke
                 
-                # Select basis components whose abs(a) / omegas are in the restricted range
-                basek = base[(omega_grid>omega_restrictions[k-1][0]) & (omega_grid<omega_restrictions[k-1][1])]
-                an_search_len_restr = basek.shape[0]
-                ## STEP 1: Grid search - AFD-FFT formulations
-                abs_coefs = 0
-                for ch_i in range(n_ch):
-                    #abs_coefs += np.abs(ifft(pymat.repmat(fft(analytic_data_matrix[ch_i, :], n_obs), an_search_len, 1) * base, n_obs, 1))
-                    abs_coefs += weights[ch_i]*np.abs(ifft(np.repeat(fft(
-                        remainder[ch_i, :], n_obs)[np.newaxis, :], 
-                        an_search_len_restr, axis=0) * basek, n_obs, 1))
-                abs_coefs = abs_coefs.T
                 
-                # Best a: we only select alphas in the restricted arc
-                afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[k-1][0]) & (omega_grid<omega_restrictions[k-1][1])]
-                if(alpha_restrictions_2[k-1][0] > alpha_restrictions_2[k-1][1]):
-                    # +++]--------[+++  -> restricted alphas arc crossing 0 alphaMin > alphaMax
-                    abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[k-1][0]) | (time_points[0]<=alpha_restrictions_2[k-1][1])]
-                    afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[k-1][0]) | (time_points[0]<=alpha_restrictions_2[k-1][1])]
-                else:
-                    # ------[++++]----  -> restricted alphas in [alphaMin, alphaMax] alphaMin < alphaMax
-                    abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[k-1][0]) & (time_points[0]<=alpha_restrictions_2[k-1][1])]
-                    afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[k-1][0]) & (time_points[0]<=alpha_restrictions_2[k-1][1])]
+                for i in indices_k:
+                
+                    # Select basis components whose abs(a) / omegas are in the restricted range
+                    basek = base[(omega_grid>omega_restrictions[i][0]) & (omega_grid<omega_restrictions[i][1])]
+    
+                    ## STEP 1: Grid search - AFD-FFT formulations
+                    abs_coefs = 0
+                    for ch_i in range(n_ch):
+                        abs_coefs += weights[ch_i]*np.abs(ifft(
+                            np.repeat(fft(remainder[ch_i, :], n_obs)[np.newaxis, :], basek.shape[0], axis=0) * basek, n_obs, 1))
+                    abs_coefs = abs_coefs.T
                     
-                max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
-                best_a = afd_grid2[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
-                
-                ## STEP 2: Postoptimization - Profile log-likelihood.
-                if(post_optimize):
-                    # We transform time points as: ---[+++]-----  ->  [+++]--------
-                    time_points_transformed = time_points - alpha_restrictions_2[k-1][0] 
-                    # Lower values than the general omega_min are not allowed
-                    omega_min_opt = max(omega_min, omega_restrictions[k-1][0])
-                    omega_max_opt = min(omega_max, omega_restrictions[k-1][1])
-                    # Optimization routine
-                    res = minimize(
-                        inner_products_sum_2, x0=split_complex(best_a), 
-                        args=(remainder, time_points_transformed, weights), 
-                        method='L-BFGS-B',
-                        bounds=[(0, # alphamin - alphamin
-                                (alpha_restrictions_2[k-1][1] - alpha_restrictions_2[k-1][0]) % (2*np.pi)), # alphamax - alphamin
-                                ((1-omega_max_opt)/(1+omega_max_opt), 
-                                 (1-omega_min_opt)/(1+omega_min_opt))],
-                        tol=1e-4, options={'disp': False})
-                    opt_a = res.x[1]*np.exp(1j*res.x[0])
-                    a_parameters[k] = opt_a * np.exp(1j*alpha_restrictions_2[k-1][0]) # alpha + alphamin
-                else:
-                    a_parameters[k] = best_a
+                    # Best a: we only select alphas in the restricted arc
+                    afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[i][0]) & (omega_grid<omega_restrictions[i][1])]
+                    if(alpha_restrictions_2[i][0] > alpha_restrictions_2[i][1]):
+                        # +++]--------[+++  -> restricted alphas arc crossing 0 alphaMin > alphaMax
+                        abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[i][0]) | (time_points[0]<=alpha_restrictions_2[i][1])]
+                        afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[i][0]) | (time_points[0]<=alpha_restrictions_2[i][1])]
+                    else:
+                        # ------[++++]----  -> restricted alphas in [alphaMin, alphaMax] alphaMin < alphaMax
+                        abs_coefs = abs_coefs[(time_points[0]>=alpha_restrictions_2[i][0]) & (time_points[0]<=alpha_restrictions_2[i][1])]
+                        afd_grid2 = afd_grid2[(time_points[0]>=alpha_restrictions_2[i][0]) & (time_points[0]<=alpha_restrictions_2[i][1])]
+                        
+                    max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
+                    best_a_tmp = afd_grid2[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
+                    
+                    ## STEP 2: Postoptimization - Profile log-likelihood.
+                    if(post_optimize):
+                        # We transform time points as: ---[+++]-----  ->  [+++]--------
+                        time_points_transformed = time_points - alpha_restrictions_2[i][0] 
+                        # Lower values than the general omega_min are not allowed
+                        omega_min_opt = max(omega_min, omega_restrictions[i][0])
+                        omega_max_opt = min(omega_max, omega_restrictions[i][1])
+                        # Optimization routine
+                        res = minimize(
+                            inner_products_sum_2, x0=split_complex(best_a_tmp), 
+                            args=(remainder, time_points_transformed, weights), 
+                            method='L-BFGS-B',
+                            bounds=[(0, # alphamin - alphamin
+                                    (alpha_restrictions_2[i][1] - alpha_restrictions_2[i][0]) % (2*np.pi)), # alphamax - alphamin
+                                    ((1-omega_max_opt)/(1+omega_max_opt), 
+                                     (1-omega_min_opt)/(1+omega_min_opt))],
+                            tol=1e-4, options={'disp': False})
+                        opt_a = res.x[1]*np.exp(1j*res.x[0])
+                        best_a_tmp = opt_a * np.exp(1j*alpha_restrictions_2[i][0]) # alpha + alphamin
+                        
+                    # Coefficient calculations 
+                    szego_a = szego(best_a_tmp, time_points)
+                    sum_abs_coefs = 0
+                    for ch_i in range(n_ch):
+                        sum_abs_coefs =+ weights[ch_i]*np.abs(np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs)[0]
+                    
+                    if sum_abs_coefs > best_sum_abs_coef:
+                        best_sum_abs_coef = sum_abs_coefs
+                        best_a = best_a_tmp
+                    
+                a_parameters[k] = best_a
                 
                 # Coefficient calculations c_k = <Remainder, szego(a)>
                 szego_a = szego(a_parameters[k], time_points)
@@ -292,6 +325,7 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
 
 def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
               omega_grid=None, weights=None, post_optimize=True, omega_min=0.001, omega_max=0.99, 
+              alpha_restrictions=None, omega_restrictions=None, group_restrictions=None,
               beta_min=None, beta_max=None):
     
     if(analytic_data_matrix.ndim == 2):
@@ -310,48 +344,32 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
     fmm_grid = np.meshgrid(omega_grid, time_points)
     afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]))
     
-    modules_grid = (1-omega_grid)/(1+omega_grid)*np.exp(1j*0)
-    an_search_len = modules_grid.shape[0]
+    # modules_grid = (1-omega_grid)/(1+omega_grid)*np.exp(1j*0)
+    # an_search_len = modules_grid.shape[0]
     
     # base: DFT coefficients of szego kernels with different a's (different modules)
-    base = np.zeros((modules_grid.shape[0], n_obs), dtype=complex)
-    for i in range(an_search_len):
-        base[i,:] = fft(szego(modules_grid[i], time_points), n_obs)
+    # base = np.zeros((modules_grid.shape[0], n_obs), dtype=complex)
+    # for i in range(an_search_len):
+    #     base[i,:] = fft(szego(modules_grid[i], time_points), n_obs)
     
     # Parameters (AFD)
-    coefs = np.zeros((n_ch, n_back+1), dtype=complex)
-    coefs2 = np.zeros((n_ch, n_back+1), dtype=complex) # Auxiliar for restr
+    # coefs = np.zeros((n_ch, n_back+1), dtype=complex)
+    # coefs2 = np.zeros((n_ch, n_back+1), dtype=complex) # Auxiliar for restr
     # phis2 = np.zeros((n_ch, n_back+1), dtype=complex) # Auxiliar for restr
     a_parameters = np.zeros(n_back+1, dtype=complex)
 
-    # Start decomposing: c0 (mean)
-    # Remainder R_(k+1) = ( R_k - c_k*e_ak(t) ) / m_ak(t)
-    # e_ak := szego(ak, t)
-    # m_ak := mobius(ak, t)
-    z = np.exp(1j*time_points)
+    # z = np.exp(1j*time_points)
     remainder = np.copy(analytic_data_matrix)
-    for ch_i in range(n_ch):
-        coefs[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
-        coefs2[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
-        remainder[ch_i,:] = ((analytic_data_matrix[ch_i,:] - coefs[ch_i,0])/z)
-    # transition_mat = np.zeros((n_back+1, n_back+1), dtype = "complex")
-    # coefs_grid = [None] * n_ch
+    # for ch_i in range(n_ch):
+    #     coefs[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
+    #     coefs2[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
+    #     remainder[ch_i,:] = ((analytic_data_matrix[ch_i,:] - coefs[ch_i,0])/z)
+
     weights = 1/np.var(remainder.real, axis=1, ddof=1)
     
     ## 1 Iteration of the backfitting algorithm: fit k waves
     for k in range(1, n_back+1):
-        
-        ## STEP 1: Grid search - AFD-FFT formulations
-        # abs_coefs = 0
-        
-        # for ch_i in range(n_ch):
-        #     abs_coefs += weights[ch_i]*np.abs(ifft(np.repeat(fft(
-        #         remainder[ch_i, :], n_obs)[np.newaxis, :], 
-        #         an_search_len, axis=0) * base, n_obs, 1))**2
-        
-        # abs_coefs = abs_coefs.T
-        #######################################################################
-        
+
         candidate_as = afd_grid[::4,:]  
         abs_coefs_2 = np.zeros((n_obs, len(omega_grid))) #alphas x omegas
         abs_coefs_2 = abs_coefs_2[::4,:] 
@@ -360,15 +378,9 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
             i, j = np.unravel_index(index, candidate_as.shape)
             if not np.isin(value, a_parameters):
                 a_parameters[k] = value
-                # coefs_ij = project_betas(analytic_data_matrix.real, time_points, a_parameters[:k+1], beta_min, beta_max)
-                # abs_coefs_2[i,j] = np.sum([weights[ch_i] * (np.abs(coefs_r) ** 2) for ch_i, coefs_r in enumerate(coefs_ij)])
                 abs_coefs_2[i,j] = project_betas_2(analytic_data_matrix.real, weights, time_points, a_parameters[:k+1], beta_min, beta_max)
             else:
-                # abs_coefs_2[i,j] = 0
                 abs_coefs_2[i,j] = float('Inf')
-        
-        # max_loc_tmp = np.argwhere(abs_coefs_2 == np.amax(abs_coefs_2))
-        # best_a = candidate_as[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
         
         min_loc_tmp = np.argwhere(abs_coefs_2 == np.amin(abs_coefs_2))
         best_a = candidate_as[min_loc_tmp[0, 0], min_loc_tmp[0, 1]]
@@ -377,48 +389,22 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
         if(post_optimize):
             res = minimize(
                 RSS_restr_betas, x0=split_complex(best_a), 
-                args=(analytic_data_matrix, time_points, k, a_parameters[:k+1], weights, beta_min, beta_max), 
+                args=(analytic_data_matrix.real, time_points, k, a_parameters[:k+1], weights, beta_min, beta_max), 
                 # Bounds: (-2pi, 4pi) para explorar bien parametro circular
                 method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi), ((1-omega_max)/(1+omega_max), (1-omega_min)/(1+omega_min))],
                 tol=1e-4, options={'disp': False})
             opt_a = res.x[1]*np.exp(1j*res.x[0])
             a_parameters[k] = opt_a
-
-        # Coefficient calculations 
-        # szego_a = szego(a_parameters[k], time_points)
-        
-        # for ch_i in range(n_ch):
-        #     coefs[ch_i, k] = np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs
-        #     remainder[ch_i,:] = ((remainder[ch_i,:] - coefs[ch_i,k]*szego_a) / mobius(a_parameters[k], time_points))
         
         coefs_proj = project_betas(analytic_data_matrix.real, time_points, a_parameters[:k+1], beta_min, beta_max)
-        # coefs_proj = project_betas(analytic_data_matrix.real, time_points, a_parameters[:k+1], beta_min, beta_max)
         
     if max_iter > 1:
         for iter_j in range(1,max_iter):
-            # Auxiliar Blaschke product: z*Bl_{a_1,...,a_K} = z*m(a1,t)*...*m(aK,t)
-        
             for k in range(1, n_back+1):
-                # Calculate the standard reminder (data-prediction) without component k:  r = X - sum ci*Bi, i != j
-                # std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), np.delete(coefs, k, axis=1), time_points)
                 coefs_proj = project_betas(analytic_data_matrix.real, time_points, np.delete(a_parameters, k, axis=0), beta_min, beta_max)                
                 std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), coefs_proj, time_points)
                 weights = 1/np.var(std_remainder, axis=1, ddof=1)
                 
-                # # Calculate the reduced reminder reminder/(z*mob1*...,mobK) (without k)
-                # blaschke = blaschke / mobius(a_parameters[k], time_points)
-                # remainder = std_remainder / blaschke
-                
-                # abs_coefs = 0
-                
-                # for ch_i in range(n_ch):
-                #     abs_coefs += weights[ch_i]*np.abs(
-                #         ifft(np.repeat(fft(remainder[ch_i, :], n_obs)[np.newaxis, :], an_search_len, axis=0) * base, n_obs, 1)
-                #         )**2
-                
-                # abs_coefs = abs_coefs.T
-                
-                #######################################################################
                 candidate_as = afd_grid[::4,:]  
                 abs_coefs_2 = np.zeros((n_obs, len(omega_grid)))
                 abs_coefs_2 = abs_coefs_2[::4,:] 
@@ -427,33 +413,14 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
                     i, j = np.unravel_index(index, candidate_as.shape)
                     if(not np.isin(value, a_parameters)):
                         a_parameters[k] = value
-                        # coefs = project_betas(analytic_data_matrix.real, time_points, a_parameters, beta_min, beta_max)
-                        # abs_coefs_2[i,j] = np.sum([weights[ch_i] * (np.abs(coefs_r) ** 2) for ch_i, coefs_r in enumerate(coefs)])
                         abs_coefs_2[i,j] = project_betas_2(analytic_data_matrix.real, weights, time_points, a_parameters, beta_min, beta_max)
                     else:
-                        # abs_coefs_2[i,j] = 0
                         abs_coefs_2[i,j] = float('Inf')
-                
-            
-                # max_loc_tmp = np.argwhere(abs_coefs_2 == np.amax(abs_coefs_2))
-                # best_a = candidate_as[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
                 
                 min_loc_tmp = np.argwhere(abs_coefs_2 == np.amin(abs_coefs_2))
                 best_a = candidate_as[min_loc_tmp[0, 0], min_loc_tmp[0, 1]]
                 a_parameters[k] = best_a
-                
-                # szego_a = szego(a_parameters[k], time_points)
-                # for ch_i in range(n_ch):
-                #     coefs2[ch_i, k] = np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs
-                #     # betas[ch_i, 0:k] = (np.angle(phis2[ch_i, 1:(k+1)]) + np.angle(a_parameters[1:(k+1)]) - np.pi)%(2*np.pi)
-                #     remainder[ch_i,:] = ((remainder[ch_i,:] - coefs[ch_i,k]*szego_a) / mobius(a_parameters[k], time_points))
-                # coefs_proj = project_betas(analytic_data_matrix.real, time_points, a_parameters, beta_min, beta_max)
-                
-                # abs_coefs = 0
-                # for ch_i in range(n_ch):
-                #     abs_coefs += weights[ch_i]*np.abs(coefs_proj[ch_i,:])**2
-                
-                
+
                 # STEP 2: Postoptimization - Profile log-likelihood.
                 if(post_optimize):
                     res = minimize(
@@ -465,21 +432,11 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
                     opt_a = res.x[1]*np.exp(1j*res.x[0])
                     a_parameters[k] = opt_a
                 
-                # Coefficient calculations 
-                # szego_a = szego(a_parameters[k], time_points)
-                # for ch_i in range(n_ch):
-                #     coefs[ch_i, k] = np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs
-                #     remainder[ch_i,:] = ((remainder[ch_i,:] - coefs[ch_i,k]*szego_a) 
-                #                           / mobius(a_parameters[k], time_points))
-                
                 coefs_proj = project_betas(analytic_data_matrix.real, time_points, a_parameters, beta_min, beta_max)
 
-                # blaschke = blaschke * mobius(a_parameters[k], time_points)
-    
     prediction = predict(a_parameters, coefs_proj, time_points)
     
     AFD2FMM_matrix = transition_matrix(a_parameters)
-    # prediction, coefs = predict2(a_parameters, analytic_data_matrix, time_points)
     
     phis = np.dot(AFD2FMM_matrix, coefs_proj.T).T
     
@@ -669,7 +626,7 @@ def fit_fmm_k_mob_restr(data_matrix, time_points=None, n_back=None, max_iter=1,
                 DM = np.column_stack((np.ones(ts.shape[0]), np.cos(ts), np.sin(ts)))
                 sigma_mat = np.linalg.inv(DM.T @ DM)
                 linears = sigma_mat @ DM.T @ remainder.T
-                
+    
                 for i in range(n_ch):
                     OLS = linears[:, i:(i+1)]
                 

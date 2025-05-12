@@ -166,7 +166,7 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
                     np.repeat(fft(remainder[ch_i, :], n_obs)[np.newaxis, :], basek.shape[0], axis=0) * basek, n_obs, 1))
     
             abs_coefs = abs_coefs.T  # n_obs x n_omegas
-        
+
             # Best a: we only select alphas in the restricted arc
             afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[i][0]) & (omega_grid<omega_restrictions[i][1])]
             if(alpha_restrictions_2[i][0] > alpha_restrictions_2[i][1]):
@@ -214,6 +214,30 @@ def fit_fmm_k_restr(analytic_data_matrix, time_points=None, n_back=None, max_ite
                 best_a = best_a_tmp
             
         a_parameters[k] = best_a
+        max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
+        best_a = afd_grid2[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
+
+        ## STEP 2: Postoptimization - Profile log-likelihood.
+        if(post_optimize):
+            # We transform time points as: ---[+++]-----  ->  [+++]--------
+            time_points_transformed = time_points - alpha_restrictions_2[k-1][0] 
+            # Lower values than the general omega_min are not allowed
+            omega_min_opt = max(omega_min, omega_restrictions[k-1][0])
+            omega_max_opt = min(omega_max, omega_restrictions[k-1][1])
+            # Optimization routine
+            res = minimize(
+                inner_products_sum_2, x0=split_complex(best_a), 
+                args=(remainder, time_points_transformed, weights), 
+                method='L-BFGS-B', 
+                bounds=[(0, # alphamin - alphamin
+                        (alpha_restrictions_2[k-1][1] - alpha_restrictions_2[k-1][0]) % (2*np.pi)), # alphamax - alphamin
+                        ((1-omega_max_opt)/(1+omega_max_opt), 
+                         (1-omega_min_opt)/(1+omega_min_opt))],
+                tol=1e-4, options={'disp': False})
+            opt_a = res.x[1]*np.exp(1j*res.x[0])
+            a_parameters[k] = opt_a * np.exp(1j*alpha_restrictions_2[k-1][0]) # alpha + alphamin
+        else:
+            a_parameters[k] = best_a
         
         szego_a = szego(a_parameters[k], time_points)
         for ch_i in range(n_ch):

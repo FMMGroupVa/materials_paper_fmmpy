@@ -55,7 +55,7 @@ from fit_fmm import fit_fmm
 res3 = fit_fmm(data_matrix=df, # Data
               n_back=8, max_iter=50, post_optimize=True,  # Fit options
               omega_min=0.01, omega_max=0.1,
-              beta_min=np.pi-0.25, beta_max=np.pi+0.25)
+              beta_min=np.pi-0.5, beta_max=np.pi+0.5)
 
 #%%
 
@@ -66,12 +66,12 @@ print(res3.R2)
 
 #%%
 
-res3.plot_predictions(channels=[0], channel_names=[""],
-                      dpi=600, width=2.8, height=2,
-                      save_path="Res/Fe2p_example_restrB.png")
-res3.plot_components(channels=[0], channel_names=[""],
-                      dpi=600, width=2.8, height=2,
-                      save_path="Res/Fe2p_comp_example_restrB.png")
+# res3.plot_predictions(channels=[0], channel_names=[""],
+#                       dpi=600, width=2.8, height=2,
+#                       save_path="Res/Fe2p_example_restrB.png")
+# res3.plot_components(channels=[0], channel_names=[""],
+#                       dpi=600, width=2.8, height=2,
+#                       save_path="Res/Fe2p_comp_example_restrB.png")
 
 # res3 = fit_fmm(data_matrix=df, # Data
 #               n_back=8, max_iter=50, post_optimize=True,  # Fit options

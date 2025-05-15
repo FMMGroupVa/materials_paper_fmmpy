@@ -13,7 +13,10 @@ def mobius(a, t):
 
 @jit
 def split_complex(z): 
-    return ((np.angle(z), np.abs(z)))
+    return ((np.angle(z) % (2*np.pi), np.abs(z)))
+
+# def split_complex(z): 
+#     return ((np.angle(z), np.abs(z)))
 
 def seq_times(nObs):
     return np.reshape(np.linspace(0, 2 * np.pi, num=nObs+1)[:-1], (1,nObs))

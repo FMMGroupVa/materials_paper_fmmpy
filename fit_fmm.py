@@ -7,7 +7,7 @@ from auxiliar_functions import seq_times
 from numpy.fft import fft
 
 from fit_fmm_k import fit_fmm_k
-from fit_fmm_k_restr import fit_fmm_k_restr, fit_fmm_k_restr_betas
+from fit_fmm_k_restr import fit_fmm_k_restr_alpha_omega, fit_fmm_k_restr_betas, fit_fmm_k_restr_all_params
 
 from auxiliar_functions import seq_times, szego, mobius, predict, predict2, transition_matrix, split_complex, inner_products_sum_2
 
@@ -71,7 +71,7 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
         print("Restricted alphas-omegas")
         if group_restrictions is None:
             group_restrictions = [i for i in range(n_back)]
-        a, coefs, phis, prediction = fit_fmm_k_restr(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter,
+        a, coefs, phis, prediction = fit_fmm_k_restr_alpha_omega(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter,
                                                      omega_grid=omega_grid, weights=np.ones(n_ch), post_optimize=post_optimize, 
                                                      omega_min=omega_min, omega_max=omega_max, 
                                                      alpha_restrictions=alpha_restrictions, omega_restrictions=omega_restrictions,
@@ -84,6 +84,16 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
                                                            omega_min = omega_min, omega_max=omega_max, 
                                                            beta_min=beta_min, beta_max=beta_max)
     
+    else:
+        print("All restricted")
+        if group_restrictions is None:
+            group_restrictions = [i for i in range(n_back)]
+        a, coefs, phis, prediction = fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter, 
+                                                           omega_grid=omega_grid, weights=np.ones(n_ch), post_optimize=post_optimize, 
+                                                           omega_min = omega_min, omega_max=omega_max, 
+                                                           alpha_restrictions=alpha_restrictions, omega_restrictions=omega_restrictions,
+                                                           group_restrictions=group_restrictions,
+                                                           beta_min=beta_min, beta_max=beta_max)
     alphas = (np.angle(a[1:]) + np.pi) % (2*np.pi)
     As = np.abs(phis[:,1:])
     betas = (np.angle(phis[:,1:]) - alphas + np.pi) % (2*np.pi)

@@ -58,7 +58,6 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
         remainder[ch_i,:] = ((analytic_data_matrix[ch_i,:] - coefs[ch_i,0])/z)
     # transition_mat = np.zeros((n_back+1, n_back+1), dtype = "complex")
     
-    
     ## 1 Iteration of the backfitting algorithm: fit k waves
     for k in range(1, n_back+1):
         ## STEP 1: Grid search - AFD-FFT formulations

@@ -7,13 +7,8 @@ Created on Thu Sep 19 09:46:50 2024
 
 import numpy as np
 from numpy.fft import fft, ifft
-from scipy.optimize import minimize, Bounds
-from numba import jit
-import matplotlib.pyplot as plt
-from auxiliar_functions import seq_times, szego, mobius, predict, predict2, transition_matrix, split_complex, inner_products_sum_2
-from sklearn.linear_model import LinearRegression
-
-
+from scipy.optimize import minimize
+from auxiliar_functions import szego, mobius, predict2, transition_matrix, split_complex, inner_products_sum_2
 
 def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
               omega_grid=None, weights=None, post_optimize=True, omega_min=0.01, omega_max=1):

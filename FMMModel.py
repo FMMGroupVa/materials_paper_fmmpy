@@ -14,33 +14,76 @@ from auxiliar_functions import mobius, seq_times
 
 
 class FMMModel:
-    def __init__(self, data=None, time_points=None,  prediction=None, params=None):
+    def __init__(self, data=None, time_points=None,  prediction=None, params=None, restricted=False, max_iter=None):
         
         self.data = data
         self.time_points = time_points
         self.prediction = prediction.real
+        self.max_iter = max_iter
+        
+        order = np.argsort((params['alpha'] + np.pi) % (2*np.pi))
+        
+        # Order parameters by alpha+pi
         self.params = params
+        self.params = {}
+        for key, value in params.items():
+            arr = np.array(value)
+            if arr.ndim == 1:
+                if arr.shape[0] == len(params['alpha']) + 1:
+                # Vector 1D: ordenar completamente
+                    fixed = arr[0:1]
+                    reordered = arr[1:][order]
+                    self.params[key] = np.array(np.concatenate([fixed, reordered]))
+                else:
+                    self.params[key] = arr[order]
+            elif arr.ndim == 2:
+                if arr.shape[1] == len(params['alpha']) + 1:
+                    # Dejar la primera columna fija y reordenar el resto
+                    fixed = arr[:, [0]]
+                    reordered = arr[:, 1:][:, order]
+                    self.params[key] = np.hstack([fixed, reordered])
+                else:
+                    # Reordenar todas las columnas si no hay columna fija
+                    self.params[key] = arr[:, order]
+        
         self.n_ch, self.n_obs = data.shape
         self.n_back = len(params['alpha'])
         var_data = np.var(data, axis=1)
         var_error = np.var(data-prediction.real, axis=1)
         self.sigma = np.sqrt(var_error)
         self.R2 = 1-var_error/var_data
+        self.partial_R2 = self.calculate_partial_R2()
+        self.restricted = False
         
     #POR DEFINIR PARA t ARBITRARIO
     def predict(self, X):
-        # ejemplo simple: X debe ser un dict con las mismas claves que los parámetros
         
         return 0
+    
     def show(self):
-        print("Parameters:")
-        for k, v in self.parametros.items():
-            print(f"  {k}: {v:.4f}")
-        if self.errores:
-            print("Errores estándar:")
-            for k, e in self.errores.items():
-                print(f"  {k}: {e:.4f}")
-        
+        if not self.restricted:
+            print("FMM model")
+        else: 
+            print("Restricted FMM model")
+        print(f"Channels: {self.n_ch}, Components: {self.n_back}, Max. iter: {self.max_iter}")
+        print("-Alphas:", " ".join(f"{alpha:.2f}" for alpha in self.params['alpha']))
+        print("-Omegas:", " ".join(f"{omega:.2f}" for omega in self.params['omega']))
+        print("-Mean partial R2:", " ".join(f"{R2mean:.2f}" for R2mean in np.mean(self.partial_R2, axis=0)))
+        print("-R2 (channel):", " ".join(f"{R2:.2f}" for R2 in self.R2))
+    
+    def __str__(self):
+        if not self.restricted:
+            str1 = "FMM model"
+        else: 
+            str1 = "Restricted FMM model"
+        str2 = f"Channels: {self.n_ch}, Components: {self.n_back}, Max. iter: {self.max_iter}"
+        str3 = "-Alphas: " + " ".join(f"{alpha:.2f}" for alpha in self.params['alpha'])
+        str4 = "-Omegas:"+ " ".join(f"{omega:.2f}" for omega in self.params['omega'])
+        str5 = "-Mean partial R2:"+ " ".join(f"{R2mean:.2f}" for R2mean in np.mean(self.partial_R2, axis=0))
+        str6 = "-R2 (channel):" + " ".join(f"{R2:.2f}" for R2 in self.R2)
+        print_str = str1 + "\n" + str2 + "\n" + str3 + "\n" +str4 + "\n" + str5 + "\n" + str6
+        return print_str
+    
     def plot_predictions(self, channels=None, channel_names=None, n_cols=None,
                          save_path=None, height=None, width=None, dpi=None):
         
@@ -64,7 +107,6 @@ class FMMModel:
             height = 3 * n_rows
         if width is None:
             width = 4 * n_cols
-        
         
         # Autoscale font size based on figure area
         fig_area = width * height
@@ -162,7 +204,6 @@ class FMMModel:
                 components = waves[ch]  # shape: (n_components, n_time_points)
                 for i, comp in enumerate(components):
                     comp2 = comp - comp[0]
-                    
                     ax.plot(time_points, comp2, label=f"Comp {i+1}", color=colors[i % len(colors)])
                 
                 # Título
@@ -235,7 +276,6 @@ class FMMModel:
         # # Version 4 - sigmas iguales
         SE_mat = np.linalg.inv(F0.T @ F0)
         common_var = np.mean(self.sigma**2)
-        print(np.sqrt(common_var))
         SE_params = np.sqrt(common_var*np.diag(SE_mat))
         
         SE = {'M': SE_params[0 : self.n_ch],
@@ -258,30 +298,41 @@ class FMMModel:
         
     def get_waves(self, n_obs):
         t = seq_times(n_obs)
-        waves = [np.zeros((self.n_back, n_obs))]*self.n_ch
-        for k in range(1, self.n_back+1):
-            for ch_i in range(self.n_ch):
-                waves[ch_i][k-1,:] = (self.params['phi'][ch_i, k]*mobius(self.params['a'][k], t)).real
-        
-        return waves
-    
-    def get_waves_ch(self, n_obs):
-        
-        waves = [np.zeros((self.n_back, n_obs))] * self.n_ch
-        t = seq_times(n_obs)
+        waves = [np.zeros((self.n_back, n_obs)) for _ in range(self.n_ch)]
         for ch_i in range(self.n_ch):
-            for k in range(self.n_back):
-                waves[ch_i][k,:] = self.params['A'][ch_i, k]*np.cos(self.params['beta'][ch_i, k] + 2*np.arctan(self.params['omega'][k] * np.tan((t - self.params['alpha'][k]) / 2)))
-                waves[ch_i][k,:] = waves[ch_i][k,:] - self.params['A'][ch_i, k]*np.cos(self.params['beta'][ch_i, k])
+            for k in range(1, self.n_back+1):
+                waves[ch_i][k-1,:] = (self.params['phi'][ch_i, k]*mobius(self.params['a'][k], t)).real
         return waves
     
+    # def get_waves_ch(self, n_obs):
+    #     waves = [np.zeros((self.n_back, n_obs))] * self.n_ch
+    #     t = seq_times(n_obs)
+    #     for ch_i in range(self.n_ch):
+    #         for k in range(self.n_back):
+    #             waves[ch_i][k,:] = self.params['A'][ch_i, k]*np.cos(self.params['beta'][ch_i, k] + 2*np.arctan(self.params['omega'][k] * np.tan((t - self.params['alpha'][k]) / 2)))
+    #             waves[ch_i][k,:] = waves[ch_i][k,:] - self.params['A'][ch_i, k]*np.cos(self.params['beta'][ch_i, k])
+    #     return waves
     
-    
-    
-    
-    
-    
-    
+    def calculate_partial_R2(self):
+        alphas = self.params['alpha']
+        omegas = self.params['omega']
+        time_points = self.time_points
+        ts = [2*np.arctan(omegas[i] * np.tan((time_points[0] - alphas[i])/2)) for i in range(self.n_back)]
+        DM = np.column_stack([np.ones(self.n_obs)] + [np.column_stack([np.cos(ts[i]), np.sin(ts[i])]) for i in range(self.n_back)])
+        
+        partial_R2 = np.zeros((self.n_ch, self.n_back))
+        RSE = (self.n_obs-1)*np.var(self.data - self.prediction, axis=1)
+        
+        for k in range(self.n_back):
+            DM_k = np.delete(DM, [2*k + 1, 2*k + 2], axis=1)
+            # RLS[ch_i] = solve_qp(DM.T @ DM, -DM.T@data_matrix[ch_i], G=G, h=h, solver='quadprog')
+            estim = np.linalg.inv(DM_k.T @ DM_k) @ DM_k.T @ self.data.T
+            prediction = np.dot(DM_k, estim)
+            squared_errors_k = (self.data - prediction.T)**2
+            RSE_k = np.sum(squared_errors_k, axis=1)
+            partial_R2[:,k] = (RSE_k-RSE)/RSE_k
+        
+        return partial_R2
     
     
     

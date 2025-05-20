@@ -20,12 +20,12 @@ from fit_fmm import fit_fmm
 
 df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\exampleData.csv').T
 
-
 #%% Fit FMM to data
 res = fit_fmm(data_matrix=df, # Data
               n_back=5, max_iter=20, post_optimize=True,  # Fit options
               omega_min=0.01, omega_max=0.99) # Parameter control
 
+print(res)
 #%%
 
 alpha_ci, omega_ci, delta_ci, gamma_ci = res.conf_intervals(0.95)

@@ -329,7 +329,6 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
         n_ch, n_obs = analytic_data_matrix.shape
     elif(analytic_data_matrix.ndim == 1):
         n_obs = analytic_data_matrix.shape[0]
-        n_ch = 1
         analytic_data_matrix = analytic_data_matrix[np.newaxis, :]
     else:
         print("Bad data matrix dimensions.")
@@ -341,28 +340,8 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
     fmm_grid = np.meshgrid(omega_grid, time_points)
     afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]))
     
-    # modules_grid = (1-omega_grid)/(1+omega_grid)*np.exp(1j*0)
-    # an_search_len = modules_grid.shape[0]
-    
-    # base: DFT coefficients of szego kernels with different a's (different modules)
-    # base = np.zeros((modules_grid.shape[0], n_obs), dtype=complex)
-    # for i in range(an_search_len):
-    #     base[i,:] = fft(szego(modules_grid[i], time_points), n_obs)
-    
-    # Parameters (AFD)
-    # coefs = np.zeros((n_ch, n_back+1), dtype=complex)
-    # coefs2 = np.zeros((n_ch, n_back+1), dtype=complex) # Auxiliar for restr
-    # phis2 = np.zeros((n_ch, n_back+1), dtype=complex) # Auxiliar for restr
     a_parameters = np.zeros(n_back+1, dtype=complex)
-
-    # z = np.exp(1j*time_points)
-    remainder = np.copy(analytic_data_matrix)
-    # for ch_i in range(n_ch):
-    #     coefs[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
-    #     coefs2[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
-    #     remainder[ch_i,:] = ((analytic_data_matrix[ch_i,:] - coefs[ch_i,0])/z)
-
-    weights = 1/np.var(remainder.real, axis=1, ddof=1)
+    weights = 1/np.var(analytic_data_matrix.real, axis=1, ddof=1)
     
     ## 1 Iteration of the backfitting algorithm: fit k waves
     for k in range(1, n_back+1):
@@ -396,15 +375,14 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
         
     if max_iter > 1:
         for iter_j in range(1,max_iter):
-            print(iter_j)
             for k in range(1, n_back+1):
                 coefs_proj = project_betas(analytic_data_matrix.real, time_points, np.delete(a_parameters, k, axis=0), beta_min, beta_max)                
                 std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), coefs_proj, time_points)
                 weights = 1/np.var(std_remainder, axis=1, ddof=1)
                 
-                candidate_as = afd_grid[::4,:]  
+                candidate_as = afd_grid[::1,:]  
                 abs_coefs_2 = np.zeros((n_obs, len(omega_grid)))
-                abs_coefs_2 = abs_coefs_2[::4,:] 
+                abs_coefs_2 = abs_coefs_2[::1,:] 
 
                 for index, value in enumerate(candidate_as.ravel()):
                     i, j = np.unravel_index(index, candidate_as.shape)
@@ -503,7 +481,6 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
             
             min_loc_tmp = np.argwhere(abs_coefs == np.amin(abs_coefs))
             best_a_tmp = candidate_as[min_loc_tmp[0, 0], min_loc_tmp[0, 1]]
-            print(best_a_tmp)
             ## STEP 2: Postoptimization - Profile log-likelihood.
             if(post_optimize):
                 # We transform time points as: ---[+++]-----  ->  [+++]--------
@@ -525,7 +502,6 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
                     tol=1e-4, options={'disp': False})
                 best_a_tmp = res.x[1]*np.exp(1j*res.x[0])*np.exp(1j*alpha_restrictions_2[i][0]) # alpha2 + alphamin
                 
-            # print((np.angle(best_a_tmp)-np.pi) % (2*np.pi))
             a_parameters_tmp = a_parameters[:k+1]
             a_parameters_tmp[k] = best_a_tmp
             

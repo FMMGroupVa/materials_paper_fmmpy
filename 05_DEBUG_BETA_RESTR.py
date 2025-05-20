@@ -26,21 +26,19 @@ df = df - ltd
 #%% Fit FMM to data
 from fit_fmm import fit_fmm
 
-n_back = 7
-max_iter = 1
+n_back = 8
+max_iter = 15
 
-alpha_restr = np.array([(0,np.pi) for i in range(n_back)])
-omega_restr = np.array([(0.01,0.1) for i in range(n_back)])
-
+alpha_restr = np.array([(0,2.9) for i in range(n_back)])
+omega_restr = np.array([(0.01,0.15) for i in range(n_back)])
 
 res4 = fit_fmm(data_matrix=df, # Data
               n_back=n_back, max_iter=max_iter, post_optimize=True,  # Fit options
-              omega_min=0.01, omega_max=0.1,
-              beta_min=np.pi-0.5, beta_max=np.pi+0.5, 
+              omega_min=0.01, omega_max=0.12,
+              beta_min=np.pi-0.3, beta_max=np.pi+0.3, 
               alpha_restrictions=alpha_restr, omega_restrictions=omega_restr)
 
 #%%
-
 res4.plot_predictions(channels=[1], channel_names=[""])
 res4.plot_components(channels=[1])
 print(res4.params['alpha'])
@@ -54,6 +52,7 @@ res3 = fit_fmm(data_matrix=df, # Data
               n_back=n_back, max_iter=max_iter, post_optimize=True,  # Fit options
               omega_min=0.01, omega_max=0.1,
               beta_min=np.pi-0.3, beta_max=np.pi+0.3)
+
 #%%
 res3.plot_predictions(channels=[1], channel_names=[""])
 res3.plot_components(channels=[1])

@@ -6,13 +6,14 @@ import scipy.signal as sc
 from auxiliar_functions import seq_times
 # from numpy.fft import fft
 
+import matplotlib.pyplot as plt
+
 from fit_fmm_k import fit_fmm_k
 from fit_fmm_k_restr import fit_fmm_k_restr_alpha_omega, fit_fmm_k_restr_betas, fit_fmm_k_restr_all_params
 
 from auxiliar_functions import seq_times, szego, mobius, predict, predict2, transition_matrix, split_complex, inner_products_sum_2
 
 from FMMModel import FMMModel
-
 
 exc_data_1 = "'data_matrix' is not an instance of 'numpy.ndarray'."
 exc_data_2 = "'data_matrix' must have 2 dimensions."
@@ -29,7 +30,7 @@ post_optimize_arguments = "'post_optimize' must be a logical value."
 def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=True,
             omega_min=0.001, omega_max = 0.99, length_omega_grid=24, omega_grid=None,
             alpha_restrictions=None, omega_restrictions=None, group_restrictions=None, 
-            beta_min=None, beta_max=None):
+            beta_min=None, beta_max=None, beta_restrictions=None):
     """
     Fits a Frequency Modulated Möbius (FMM) model to a multivariate signal.
     
@@ -94,14 +95,23 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
     --------
     print("Por hacer")
     """
-    if isinstance(data_matrix, pd.DataFrame): # From DataFrame to ndarray
+    
+    if isinstance(data_matrix, pd.DataFrame):
         data_matrix = data_matrix.values
-        
-    if not isinstance(data_matrix, np.ndarray): # not an ndarray
-        raise Exception(exc_data_1)
-    else: 
-        if not data_matrix.ndim == 2: # ndarray but incorrect dimensions
-            raise Exception(exc_data_2)
+
+    # Convertir lista o Series a ndarray
+    if isinstance(data_matrix, (list, tuple, pd.Series)):
+        data_matrix = np.array(data_matrix)
+    
+    # Confirmar que ahora es ndarray
+    if not isinstance(data_matrix, np.ndarray):
+        raise TypeError("'data_matrix' must be convertible to a numpy.ndarray.")
+    
+    # Asegurar que es 2D
+    if data_matrix.ndim == 1:
+        data_matrix = data_matrix[np.newaxis, :]  # convertir a (1, N)
+    elif data_matrix.ndim != 2:
+        raise ValueError("'data_matrix' must be a 2D array.")
         
     if (beta_min is None) ^ (beta_max is None):
         raise Exception(exc_beta_restr_1)
@@ -131,8 +141,6 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
     
     if n_back < 1 or max_iter < 1:
         raise Exception(algorithm_arguments)
-    
-
         
     if not isinstance(post_optimize, bool):
         raise Exception(post_optimize_arguments)
@@ -160,7 +168,6 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
                                                omega_min=omega_min, omega_max=omega_max)
     
     elif beta_min is None and beta_max is None:
-        print("Restricted alphas-omegas")
         restricted_flag = True
         if group_restrictions is None:
             group_restrictions = [i for i in range(n_back)]
@@ -171,15 +178,13 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
                                                      group_restrictions=group_restrictions)
         
     elif alpha_restrictions is None and omega_restrictions is None:
-        print("Restricted betas")
         restricted_flag = True
         a, coefs, phis, prediction = fit_fmm_k_restr_betas(analytic_data_matrix, time_points=time_points, n_back=n_back, max_iter=max_iter, 
                                                            omega_grid=omega_grid, weights=np.ones(n_ch), post_optimize=post_optimize, 
                                                            omega_min=omega_min, omega_max=omega_max, 
-                                                           beta_min=beta_min, beta_max=beta_max)
+                                                           beta_min=beta_min, beta_max=beta_max, beta_restrictions=beta_restrictions)
     
     else:
-        print("All restricted")
         restricted_flag = True
         if group_restrictions is None:
             group_restrictions = [i for i in range(n_back)]
@@ -192,11 +197,11 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
     
     alphas = (np.angle(a[1:]) + np.pi) % (2*np.pi)
     As = np.abs(phis[:,1:])
-    betas = (np.angle(phis[:,1:]) - alphas + np.pi) % (2*np.pi)
+    betas = (np.angle(phis[:,1:]) + alphas) % (2*np.pi)
     params = {'alpha': alphas,
               'omega': (1-np.abs(a[1:]))/(1+np.abs(a[1:])),
               'a': a,
-              'M': np.abs(phis[:,0]),
+              'M': phis[:,0].real,
               'A': As, 
               'beta': betas,
               'delta': As*np.cos(betas),
@@ -204,7 +209,7 @@ def fit_fmm(data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=T
               'coef': coefs,
               'phi': phis}
     
-    result = FMMModel(data=data_matrix, time_points=time_points, prediction=prediction, 
+    result = FMMModel(data=data_matrix, time_points=time_points, prediction=prediction.real, 
                       params=params, restricted=restricted_flag, max_iter=max_iter)
     
     return result

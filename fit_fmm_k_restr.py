@@ -314,16 +314,17 @@ def fit_fmm_k_restr_alpha_omega(analytic_data_matrix, time_points=None, n_back=N
                 blaschke = blaschke * mobius(a_parameters[k], time_points)
                 
     AFD2FMM_matrix = transition_matrix(a_parameters)
-    phis= np.dot(AFD2FMM_matrix, coefs.T).T
-    
+      
     prediction, coefs = predict2(a_parameters, analytic_data_matrix, time_points)
+    phis = np.dot(AFD2FMM_matrix, coefs.T).T
+    
     
     return a_parameters, coefs, phis, prediction
 
 
 def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
               omega_grid=None, weights=None, post_optimize=True, omega_min=0.001, omega_max=0.99,
-              beta_min=None, beta_max=None):
+              beta_min=None, beta_max=None, beta_restrictions=None):
     
     if(analytic_data_matrix.ndim == 2):
         n_ch, n_obs = analytic_data_matrix.shape
@@ -335,7 +336,7 @@ def fit_fmm_k_restr_betas(analytic_data_matrix, time_points=None, n_back=None, m
     
     if(max_iter==None):
         max_iter=1
-        
+    
     # Grid definition.
     fmm_grid = np.meshgrid(omega_grid, time_points)
     afd_grid = (1-fmm_grid[0])/(1+fmm_grid[0])*np.exp(1j*(fmm_grid[1]))
@@ -455,7 +456,6 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
         best_sum_RSS = np.inf
         best_a = None
         for i in indices_k:
-            print((k,i))
             # Best a: we only select alphas in the restricted arc
             afd_grid2 = afd_grid[:,(omega_grid>omega_restrictions[i][0]) & (omega_grid<omega_restrictions[i][1])]
             
@@ -576,7 +576,6 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
                             tol=1e-4, options={'disp': False})
                         best_a_tmp = res.x[1]*np.exp(1j*res.x[0])*np.exp(1j*alpha_restrictions_2[i][0]) # alpha2 + alphamin
                         
-                    # print((np.angle(best_a_tmp)-np.pi) % (2*np.pi))
                     a_parameters_tmp = a_parameters
                     a_parameters_tmp[k] = best_a_tmp
                     

@@ -9,7 +9,6 @@ os.chdir(r'C:\Users\Christian\Documents\GitHub\PaquetePython')
 
 from fit_fmm import fit_fmm
 
-
 #%% Data: ECG beat 
 # df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\example_chromatography.csv').T
 df_raw = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\example_Fe2p.csv')

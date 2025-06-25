@@ -51,3 +51,5 @@ res = fit_fmm(data_matrix=df, # Data
 
 print(res.params['alpha'])
 print(res.params['beta'])
+#%%
+

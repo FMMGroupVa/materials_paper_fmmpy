@@ -27,19 +27,27 @@ T_ome = (0.1, 0.5)
 # Param restriction arguments:
 alpha_restr = np.array([P_alpha, QRS_alpha, QRS_alpha, QRS_alpha, T_alpha])
 omega_restr = np.array([P_ome, QRS_ome, QRS_ome, QRS_ome, T_ome])
+# alpha_restr = np.array([P_alpha, QRS_alpha, QRS_alpha, T_alpha])
+# omega_restr = np.array([P_ome, QRS_ome, QRS_ome, T_ome])
 
 res = fit_fmm(data_matrix=df, # Data
-              n_back=5, max_iter=20, post_optimize=True,  # Fit options
+              n_back=5, max_iter=8, post_optimize=True,  # Fit options
               alpha_restrictions=alpha_restr, omega_restrictions=omega_restr,
               omega_min=0.01, omega_max=0.5) # Parameter control
 
 #%% Print model summary:
 print(res)
     
+
 #%% Plot results:
 lead_names = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
-res.plot_predictions(channels = [1,5,7], channel_names=lead_names, n_cols=3,
-                     width=5.9, height=2, dpi=600, save_path="Res/3leadsexample.png")
+res.plot_components(channel_names=lead_names, n_cols=3,
+                     width=5.9, height=5, dpi=300, save_path="Res/components.png")
+
+#%% Plot results:
+lead_names = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
+res.plot_predictions(channel_names=lead_names, n_cols=3,
+                     width=5.9, height=5, dpi=300, save_path="Res/3leadsexample.png")
 
 #%% Plot results:
 res.plot_residuals(channel_names=lead_names, n_cols=4,

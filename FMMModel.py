@@ -105,9 +105,7 @@ class FMMModel:
     
     show_conf_intervals(conf_level=0.95, method=2)
         Print formatted confidence intervals.
-    
-    calculate_partial_R2()
-        Compute partial R² values for each component in each channel.
+
     """
     def __init__(self, data=None, time_points=None,  prediction=None, params=None, restricted=False, max_iter=None):
         """
@@ -200,7 +198,7 @@ class FMMModel:
         
         self.sigma = np.sqrt(var_error)
         self.R2 = 1-var_error/var_data
-        self.partial_R2 = self.calculate_partial_R2()
+        self.partial_R2 = self._calculate_partial_R2()
         self.restricted = restricted
         
     #POR DEFINIR PARA t ARBITRARIO
@@ -774,7 +772,7 @@ class FMMModel:
                 waves[ch_i][k,:] = (self.params['phi'][ch_i, k+1]*mobius(self.params['a'][k+1], t)).real
         return waves
     
-    def calculate_partial_R2(self):
+    def _calculate_partial_R2(self):
         """
         Compute the partial R² values for each FMM component and channel.
     

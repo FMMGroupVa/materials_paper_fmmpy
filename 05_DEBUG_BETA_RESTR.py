@@ -2,14 +2,8 @@
 """
 @author: Christian
 """
-
 import numpy as np
 import pandas as pd
-
-import os
-os.chdir(r'C:\Users\Christian\Documents\GitHub\PaquetePython')
-
-
 
 #%% Data: ECG beat 
 # df = pd.read_csv(r'C:\Users\Christian\Documents\GitHub\PaquetePython\example_chromatography.csv').T

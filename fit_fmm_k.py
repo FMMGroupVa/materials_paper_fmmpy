@@ -87,11 +87,6 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
             coefs[ch_i, k] = np.conj(szego_a.dot(remainder[ch_i,:].conj().T))/n_obs
             remainder[ch_i,:] = ((remainder[ch_i,:] - coefs[ch_i,k]*szego_a) 
                                  / mobius(a_parameters[k], time_points))
-        
-        AFD2FMM_matrix = transition_matrix(a_parameters[0:(k+1)])
-        for ch_i in range(n_ch):    
-            phis[ch_i, 0:k+1] = np.dot(AFD2FMM_matrix, coefs[ch_i, 0:k+1].T).T
-            
     
     if max_iter > 1:
         for iter_j in range(1,max_iter):
@@ -126,7 +121,7 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
                     res = minimize(
                         inner_products_sum_2, x0=split_complex(best_a), 
                         args=(remainder, time_points, weights), 
-                        # Bounds: (-2pi, 4pi) para explorar bien parametro circular
+                        # Bounds: (-2pi, 4pi) to explore the cicular parameter without restrictions
                         method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi), ((1-omega_max)/(1+omega_max),(1-omega_min)/(1+omega_min))],
                         options={'disp': False})
                     opt_a = res.x[1]*np.exp(1j*res.x[0])
@@ -145,116 +140,3 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
     
     return a_parameters, coefs, phis, prediction
     
-
-
-def opt_mobius_fun(arg, data_matrix, time_points, weights):
-    ts = 2*np.arctan(arg[1]*np.tan((time_points[0] - arg[0])/2)) 
-    DM = np.column_stack((np.ones(data_matrix.shape[1]), np.cos(ts), np.sin(ts)))
-    linears = np.linalg.inv(DM.T @ DM) @ DM.T @ data_matrix.T
-    #Weighted RSS
-    return(np.sum([weights[ch]*np.sum((data_matrix[ch] - linears[0,ch] - linears[1,ch]*np.cos(ts) - linears[2,ch]*np.sin(ts))**2) for ch in range(data_matrix.shape[0])]))
-
-
-def fit_fmm_k_mob(data_matrix, time_points=None, n_back=None, max_iter=1,
-                  alpha_grid=None, omega_grid=None, 
-                  weights=None, post_optimize=True, 
-                  omega_min = 0.001, omega_max=1):
-    
-    n_ch, n_obs = data_matrix.shape
-    
-    # Grid definition.
-    X, Y = np.meshgrid(alpha_grid, omega_grid.real)
-    fmm_grid = np.column_stack((X.ravel(), Y.ravel()))
-    RSS = np.zeros(fmm_grid.shape[0])
-    # Parameters
-    best_pars = [None] * n_back
-    best_pars_linear = [None] * n_back
-    components = [None] * n_back
-    # Remainder
-    remainder = np.copy(data_matrix)
-    
-    # Precalculations for each grid node:
-    # t_star = 2*tan(omega(tan((t-alpha)/2)))
-    # Dm = [1 cos(t_star) sin(t_star)]
-    # OLS = inv(DM^T * DM) * DM^T * Y,  we precalculate: inv(DM^T * DM) * DM^T
-    weights = 1/np.var(data_matrix, axis = 1)
-     
-    TS = [2*np.arctan(node[1]*np.tan((time_points[0] - node[0])/2)) for node in fmm_grid]
-    cosTF = [np.cos(ts) for ts in TS]
-    sinTF = [np.sin(ts) for ts in TS]
-    DMs = [np.column_stack((np.ones(n_obs), cosTF[j], sinTF[j])) for j in range(len(TS))]
-    precalculations = [np.linalg.inv(DM.T @ DM) @ DM.T for DM in DMs] # inv(X'X) X' 
-    
-    ## 1 Iteration of the backfitting algorithm: fit k waves
-    for k in range(n_back):
-        
-        # GRID STEP
-        estimates = [prec @ remainder.T for prec in precalculations]
-        RSS = [sum([weights[ch]*np.sum((remainder[ch] - est[0,ch] - est[1,ch]*cosTF[j] - est[2,ch]*sinTF[j])**2) 
-                    for ch in range(n_ch)]) 
-               for j, est in enumerate(estimates)]
-        min_index = np.argmin(RSS) 
-        
-        # OPTIMIZATION STEP
-        if(post_optimize):
-            res = minimize(opt_mobius_fun, x0=(fmm_grid[min_index]), 
-                           args=(remainder, time_points, weights), 
-                           method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi),
-                                                      (omega_min, omega_max)], 
-                           tol=1e-4, options={'disp': False})
-            best_pars[k] = res.x
-        else:
-            best_pars[k] = fmm_grid[min_index]
-        
-        # PREDICTION AND REMAINDER CALCULATIONS
-        ts = 2*np.arctan(best_pars[k][1]*np.tan((time_points[0] - best_pars[k][0])/2)) 
-        DM = np.column_stack((np.ones(ts.shape[0]), np.cos(ts), np.sin(ts)))
-        linears = np.linalg.inv(DM.T @ DM) @ DM.T @ remainder.T
-        best_pars_linear[k] = linears
-        components[k] = np.column_stack([linears[0,ch] + linears[1,ch]*np.cos(ts) + linears[2,ch]*np.sin(ts) for ch in range(n_ch)]).T
-        remainder = remainder - components[k]
-        weights = 1/np.var(remainder, axis = 1)
-        
-    if max_iter > 1:
-        for iter_j in range(1,max_iter):
-            for k in range(n_back):
-                
-                # Repeat estimation for component k
-                remainder = remainder + components[k]
-                weights = 1/np.var(remainder, axis = 1)    
-                
-                # GRID STEP (Precalculated matrix*residuals)
-                estimates = [prec @ remainder.T for prec in precalculations]
-                RSS = [sum([weights[ch]*np.sum((remainder[ch] - est[0,ch] - est[1,ch]*np.cos(TS[j]) - est[2,ch]*np.sin(TS[j]))**2) 
-                            for ch in range(n_ch)]) 
-                       for j, est in enumerate(estimates)]
-                min_index = np.argmin(RSS) 
-                
-                # OPTIMIZATION STEP
-                if(post_optimize):
-                    res = minimize(opt_mobius_fun, x0=(fmm_grid[min_index]), 
-                                   args=(remainder, time_points, weights), 
-                                   method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi),
-                                                              (omega_min, omega_max)], 
-                                   tol=1e-4, options={'disp': False})
-                    best_pars[k] = res.x
-                else:
-                    best_pars[k] = fmm_grid[min_index]
-                
-                # PREDICTION AND REMAINDER CALCULATIONS
-                ts = 2*np.arctan(best_pars[k][1]*np.tan((time_points[0] - best_pars[k][0])/2)) 
-                DM = np.column_stack((np.ones(ts.shape[0]), np.cos(ts), np.sin(ts)))
-                linears = np.linalg.inv(DM.T @ DM) @ DM.T @ remainder.T
-                best_pars_linear[k] = linears
-                predictions = np.column_stack([linears[0,ch] + linears[1,ch]*np.cos(ts) + linears[2,ch]*np.sin(ts) for ch in range(n_ch)]).T
-                remainder = remainder - predictions
-                weights = 1/np.var(remainder, axis = 1)    
-            
-    return best_pars, best_pars_linear, remainder
-    
-
-def RSS_grid(data, est, cosTF, sinTF, weights):
-    n_ch = est.shape[1]
-    return sum([weights[ch]*np.sum((data[ch] - est[0,ch] - est[1,ch]*cosTF - est[2,ch]*sinTF)**2)  for ch in range(n_ch)])
-
-

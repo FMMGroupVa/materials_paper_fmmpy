@@ -8,7 +8,10 @@ Created on Mon Apr 28 12:10:21 2025
 import numpy as np
 import pandas as pd
 
-from fit_fmm import fit_fmm
+import os
+os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython")
+
+from PyFMM.fit_fmm import fit_fmm
 
 #%% Data: ECG beat 
 df = pd.read_csv(r'Patient1.csv', header=None)

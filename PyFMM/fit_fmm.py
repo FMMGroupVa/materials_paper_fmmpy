@@ -5,15 +5,15 @@ import pandas as pd
 import scipy.signal as sc
 import time
 
-from fit_fmm_k import fit_fmm_k
-from fit_fmm_k_restr import (
+from .fit_fmm_k import fit_fmm_k
+from .fit_fmm_k_restr import (
     fit_fmm_k_restr_alpha_omega,
     fit_fmm_k_restr_betas,
     fit_fmm_k_restr_all_params
 )
-from auxiliar_functions import seq_times
+from .auxiliar_functions import seq_times
 
-from FMMModel import FMMModel
+from .FMMModel import FMMModel
 
 ERROR_MESSAGES = {
     "exc_data_1": "'data_matrix' is not an instance of 'numpy.ndarray'.",
@@ -174,20 +174,38 @@ def fit_fmm(
         time_points = seq_times(n_obs)
 
     analytic_data_matrix = sc.hilbert(data_matrix, axis=1)
+    
     if alpha_restrictions is None and omega_restrictions is None and beta_min is None and beta_max is None:
         a, coefs, phis, prediction = fit_fmm_k(
-            analytic_data_matrix, time_points, n_back, max_iter,
-            omega_grid, weights=np.ones(n_ch), post_optimize=True,
-            omega_min=omega_min, omega_max=omega_max
+            data_matrix=analytic_data_matrix,
+            time_points=time_points,
+            n_back=n_back,
+            max_iter=max_iter,
+            omega_grid=omega_grid,
+            weights=np.ones(n_ch),
+            post_optimize=post_optimize,
+            omega_min=omega_min,
+            omega_max=omega_max
         )
+    
     elif beta_min is None and beta_max is None and beta_restrictions is None:
         restricted_flag = True
         group_restrictions = group_restrictions or list(range(n_back))
         a, coefs, phis, prediction = fit_fmm_k_restr_alpha_omega(
-            analytic_data_matrix, time_points, n_back, max_iter,
-            omega_grid, np.ones(n_ch), post_optimize,
-            omega_min, omega_max, alpha_restrictions, omega_restrictions, group_restrictions
+            data_matrix=analytic_data_matrix,
+            time_points=time_points,
+            n_back=n_back,
+            max_iter=max_iter,
+            omega_grid=omega_grid,
+            weights=np.ones(n_ch),
+            post_optimize=post_optimize,
+            omega_min=omega_min,
+            omega_max=omega_max,
+            alpha_restrictions=alpha_restrictions,
+            omega_restrictions=omega_restrictions,
+            group_restrictions=group_restrictions
         )
+    
     elif alpha_restrictions is None and omega_restrictions is None:
         restricted_flag = True
         if beta_restrictions is None:
@@ -200,10 +218,19 @@ def fit_fmm(
                 ] for row in beta_restrictions
             ]
         a, coefs, phis, prediction = fit_fmm_k_restr_betas(
-            analytic_data_matrix, time_points, n_back, max_iter,
-            alpha_grid, omega_grid, np.ones(n_ch), post_optimize,
-            omega_min, omega_max, beta_restrictions
+            data_matrix=analytic_data_matrix,
+            time_points=time_points,
+            n_back=n_back,
+            max_iter=max_iter,
+            alpha_grid=alpha_grid,
+            omega_grid=omega_grid,
+            weights=np.ones(n_ch),
+            post_optimize=post_optimize,
+            omega_min=omega_min,
+            omega_max=omega_max,
+            beta_restrictions=beta_restrictions
         )
+    
     else:
         restricted_flag = True
         group_restrictions = group_restrictions or list(range(n_back))
@@ -217,10 +244,20 @@ def fit_fmm(
                 ] for row in beta_restrictions
             ]
         a, coefs, phis, prediction = fit_fmm_k_restr_all_params(
-            analytic_data_matrix, time_points, n_back, max_iter,
-            alpha_grid, omega_grid, np.ones(n_ch), post_optimize,
-            omega_min, omega_max,
-            alpha_restrictions, omega_restrictions, group_restrictions, beta_restrictions
+            data_matrix=analytic_data_matrix,
+            time_points=time_points,
+            n_back=n_back,
+            max_iter=max_iter,
+            alpha_grid=alpha_grid,
+            omega_grid=omega_grid,
+            weights=np.ones(n_ch),
+            post_optimize=post_optimize,
+            omega_min=omega_min,
+            omega_max=omega_max,
+            alpha_restrictions=alpha_restrictions,
+            omega_restrictions=omega_restrictions,
+            group_restrictions=group_restrictions,
+            beta_restrictions=beta_restrictions
         )
 
     alphas = (np.angle(a[1:]) + np.pi) % (2 * np.pi)

@@ -9,7 +9,7 @@ import numpy as np
 from numpy.fft import fft, ifft
 from scipy.optimize import minimize
 # from numba import jit
-from auxiliar_functions import szego, mobius, predict, predict2, transition_matrix, inner_products_sum_2, split_complex #, seq_times
+from .auxiliar_functions import szego, mobius, predict, predict2, transition_matrix, inner_products_sum_2, split_complex #, seq_times
 from qpsolvers import solve_ls #, solve_qp
 
 def RSS_restr_betas(splitted_a, data_matrix, time_points, k, a_parameters, weights, beta_restrictions):

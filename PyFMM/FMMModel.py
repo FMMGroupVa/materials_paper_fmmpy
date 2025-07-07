@@ -10,7 +10,7 @@ import numpy as np
 import math
 from scipy.linalg import block_diag
 from scipy.stats import norm
-from auxiliar_functions import mobius, seq_times
+from .auxiliar_functions import mobius, seq_times
 
 class FMMModel:
     """
@@ -278,7 +278,7 @@ class FMMModel:
         return "\n".join(lines)
     
     def plot_predictions(self, channels=None, channel_names=None, n_cols=None,
-                         save_path=None, height=None, width=None, dpi=None):
+                         save_path=None, height=None, width=None, dpi=None, show=True):
         """
         Plot the original signal and the fitted FMM prediction for selected channels.
     
@@ -353,8 +353,8 @@ class FMMModel:
             ax = axes[row][col]
     
             if 0 <= ch < self.n_ch:
-                ax.plot(self.time_points[0], self.data[ch, :], label="Data", color="tab:blue")
-                ax.plot(self.time_points[0], self.prediction[ch, :].real, label="Prediction", color="tab:orange")
+                ax.plot(self.time_points[0], self.data[ch, :], label="Data", color="tab:gray", linewidth=1.0)
+                ax.plot(self.time_points[0], self.prediction[ch, :].real, label="Prediction", color="black", linewidth=1.2)
                 
                 # Set title
                 if channel_names is not None and ch < len(channel_names): 
@@ -383,10 +383,14 @@ class FMMModel:
         if save_path is not None:
             plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
         
-        plt.show()
+        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+        if show:
+            plt.show()
+        else:
+            plt.close()
     
     def plot_residuals(self, channels=None, channel_names=None, n_cols=None,
-                   save_path=None, height=None, width=None, dpi=None):
+                   save_path=None, height=None, width=None, dpi=None, show=True):
         """
         Plot the residuals (difference between original and predicted signal) for selected channels.
         
@@ -492,10 +496,13 @@ class FMMModel:
         if save_path is not None:
             plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
         
-        plt.show()
+        if show:
+            plt.show()
+        else:
+            plt.close()
     
     def plot_components(self, n_obs=None, channels=None, channel_names=None, n_cols=None,
-                        save_path=None, height=None, width=None, dpi=None):
+                        save_path=None, height=None, width=None, dpi=None, show=True):
         """
         Plot the contribution of each FMM component for selected channels.
     
@@ -605,7 +612,10 @@ class FMMModel:
         if save_path is not None:
             plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
     
-        plt.show()
+        if show:
+            plt.show()
+        else:
+            plt.close()
     
     def calculate_SE(self, method=2):
         """
@@ -765,7 +775,7 @@ class FMMModel:
             Each element is a 2D array of shape (n_back, n_obs) containing the real-valued 
             contributions of each component for that channel.
         """
-        waves = [np.zeros((self.n_back, n_obs))] * self.n_ch
+        waves = [np.zeros((self.n_back, n_obs)) for _ in range(self.n_ch)]
         t = seq_times(n_obs)
         for ch_i in range(self.n_ch):
             for k in range(self.n_back):
@@ -790,23 +800,63 @@ class FMMModel:
             A matrix of shape (n_channels, n_back) where each entry [i, k] represents
             the partial R² of component k in channel i.
         """
+        # alphas = self.params['alpha']
+        # omegas = self.params['omega']
+        # time_points = self.time_points
+        # ts = [2*np.arctan(omegas[i] * np.tan((time_points[0] - alphas[i])/2)) for i in range(self.n_back)]
+        # DM = np.column_stack([np.ones(self.n_obs)] + [np.column_stack([np.cos(ts[i]), np.sin(ts[i])]) for i in range(self.n_back)])
+        
+        # partial_R2 = np.zeros((self.n_ch, self.n_back))
+        # RSE = (self.n_obs-1)*np.var(self.data - self.prediction, axis=1)
+        
+        # for k in range(self.n_back):
+        #     DM_k = np.delete(DM, [2*k + 1, 2*k + 2], axis=1)
+        #     # RLS[ch_i] = solve_qp(DM.T @ DM, -DM.T@data_matrix[ch_i], G=G, h=h, solver='quadprog')
+        #     estim = np.linalg.inv(DM_k.T @ DM_k) @ DM_k.T @ self.data.T
+        #     prediction = np.dot(DM_k, estim)
+        #     squared_errors_k = (self.data - prediction.T)**2
+        #     RSE_k = np.sum(squared_errors_k, axis=1)
+        #     partial_R2[:,k] = (RSE_k-RSE)/RSE_k
+        
+        # return partial_R2
         alphas = self.params['alpha']
         omegas = self.params['omega']
         time_points = self.time_points
-        ts = [2*np.arctan(omegas[i] * np.tan((time_points[0] - alphas[i])/2)) for i in range(self.n_back)]
-        DM = np.column_stack([np.ones(self.n_obs)] + [np.column_stack([np.cos(ts[i]), np.sin(ts[i])]) for i in range(self.n_back)])
+        
+        ts = [
+            2 * np.arctan(omegas[i] * np.tan((time_points[0] - alphas[i]) / 2))
+            for i in range(self.n_back)
+        ]
+        
+        # Diseño con intercepto + todas las ondas
+        DM = np.column_stack(
+            [np.ones(self.n_obs)] +
+            [np.column_stack([np.cos(ts[i]), np.sin(ts[i])]) for i in range(self.n_back)]
+        )
         
         partial_R2 = np.zeros((self.n_ch, self.n_back))
-        RSE = (self.n_obs-1)*np.var(self.data - self.prediction, axis=1)
+        
+        # RSS del modelo completo
+        RSS_full = np.sum((self.data - self.prediction) ** 2, axis=1)
+        
+        # TSS de cada canal (con ajuste de media)
+        TSS = np.sum(
+            (self.data - np.mean(self.data, axis=1, keepdims=True)) ** 2,
+            axis=1
+        )
         
         for k in range(self.n_back):
-            DM_k = np.delete(DM, [2*k + 1, 2*k + 2], axis=1)
-            # RLS[ch_i] = solve_qp(DM.T @ DM, -DM.T@data_matrix[ch_i], G=G, h=h, solver='quadprog')
-            estim = np.linalg.inv(DM_k.T @ DM_k) @ DM_k.T @ self.data.T
-            prediction = np.dot(DM_k, estim)
-            squared_errors_k = (self.data - prediction.T)**2
-            RSE_k = np.sum(squared_errors_k, axis=1)
-            partial_R2[:,k] = (RSE_k-RSE)/RSE_k
+            # Quitar la onda k (cos,sin)
+            DM_k = np.delete(DM, [2 * k + 1, 2 * k + 2], axis=1)
+        
+            # OLS para cada canal
+            estim = np.linalg.pinv(DM_k.T @ DM_k) @ DM_k.T @ self.data.T
+            prediction_k = np.dot(DM_k, estim)
+        
+            RSS_reduced = np.sum((self.data - prediction_k.T) ** 2, axis=1)
+        
+            # Partial R² = (RSS_reduced - RSS_full) / TSS
+            partial_R2[:, k] = (RSS_reduced - RSS_full) / TSS
         
         return partial_R2
     

@@ -1,0 +1,4 @@
+FMM in R:
+Mean execution time over 100 runs: 17.6819 s
+Max time: 17.9693 s
+

@@ -201,10 +201,50 @@ class FMMModel:
         self.partial_R2 = self._calculate_partial_R2()
         self.restricted = restricted
         
-    #POR DEFINIR PARA t ARBITRARIO
-    def predict(self, X):
-        
-        return 0
+    def predict(self, t=None):
+        """
+        Predict the signal at arbitrary time points using the FMM model.
+    
+        Parameters
+        ----------
+        t : array-like, shape (n_obs,)
+            Time points where the prediction should be evaluated.
+    
+        Returns
+        -------
+        np.ndarray
+            Complex-valued predicted signal of shape (n_channels, len(t)).
+        """
+        if t is None:
+            if self.time_points is None or len(self.time_points) == 0:
+                raise ValueError("No time points provided and self.time_points is not available.")
+            t = self.time_points[0]
+
+        t = np.atleast_1d(t)
+        if t.ndim != 1:
+            raise ValueError("Input 't' must be a 1D array of time points.")
+    
+        n_ch = self.n_ch
+        n_obs = t.shape[0]
+        n_back = self.n_back
+    
+        # Check required parameters
+        if 'phi' not in self.params or 'a' not in self.params:
+            raise ValueError("Both 'phi' and 'a' must be available in self.params to predict.")
+    
+        phi = self.params['phi']  # shape (n_ch, n_back + 1)
+        a = self.params['a']      # shape (n_back + 1,)
+    
+        # Initialize prediction with constant term (phi_0)
+        prediction = np.ones((n_ch, n_obs), dtype=complex) * phi[:, 0][:, np.newaxis]
+    
+        # Add each oscillatory component
+        for k in range(1, n_back + 1):
+            mob = mobius(a[k], t)  # shape (n_obs,)
+            for ch_i in range(n_ch):
+                prediction[ch_i] += phi[ch_i, k] * mob
+    
+        return prediction
     
     def show(self):
         """
@@ -354,7 +394,7 @@ class FMMModel:
     
             if 0 <= ch < self.n_ch:
                 ax.plot(self.time_points[0], self.data[ch, :], label="Data", color="tab:gray", linewidth=1.0)
-                ax.plot(self.time_points[0], self.prediction[ch, :].real, label="Prediction", color="#008080", linewidth=1.5)
+                ax.plot(self.time_points[0], self.prediction[ch, :].real, label="Prediction", color="#0055aa", linewidth=1.5)
                 
                 # Set title
                 if channel_names is not None and ch < len(channel_names): 
@@ -382,8 +422,7 @@ class FMMModel:
         # Save or show
         if save_path is not None:
             plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
-        
-        plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
+
         if show:
             plt.show()
         else:
@@ -466,8 +505,8 @@ class FMMModel:
     
             if 0 <= ch < self.n_ch:
                 residual = self.data[ch, :] - self.prediction[ch, :].real
-                ax.plot(self.time_points[0], residual, color="tab:red", label="Residual")
-                ax.axhline(0, linestyle='--', color='black', linewidth=0.8)
+                ax.plot(self.time_points[0], residual, color="#171616", label="Residual", linewidth=0.9)
+                ax.axhline(0, linestyle='--', color='tab:red', linewidth=1.5)
                 
                 # Title
                 if channel_names is not None and ch < len(channel_names): 
@@ -828,7 +867,7 @@ class FMMModel:
             for i in range(self.n_back)
         ]
         
-        # Diseño con intercepto + todas las ondas
+        # Design Matrix full model
         DM = np.column_stack(
             [np.ones(self.n_obs)] +
             [np.column_stack([np.cos(ts[i]), np.sin(ts[i])]) for i in range(self.n_back)]
@@ -836,10 +875,9 @@ class FMMModel:
         
         partial_R2 = np.zeros((self.n_ch, self.n_back))
         
-        # RSS del modelo completo
+        # RSS full
         RSS_full = np.sum((self.data - self.prediction) ** 2, axis=1)
         
-        # TSS de cada canal (con ajuste de media)
         TSS = np.sum(
             (self.data - np.mean(self.data, axis=1, keepdims=True)) ** 2,
             axis=1
@@ -848,14 +886,10 @@ class FMMModel:
         for k in range(self.n_back):
             # Quitar la onda k (cos,sin)
             DM_k = np.delete(DM, [2 * k + 1, 2 * k + 2], axis=1)
-        
             # OLS para cada canal
             estim = np.linalg.pinv(DM_k.T @ DM_k) @ DM_k.T @ self.data.T
             prediction_k = np.dot(DM_k, estim)
-        
             RSS_reduced = np.sum((self.data - prediction_k.T) ** 2, axis=1)
-        
-            # Partial R² = (RSS_reduced - RSS_full) / TSS
             partial_R2[:, k] = (RSS_reduced - RSS_full) / TSS
         
         return partial_R2

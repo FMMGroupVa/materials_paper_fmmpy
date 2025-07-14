@@ -1,2 +1,2 @@
 import os
-os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython")
+os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython\Software")

@@ -1,15 +1,9 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 12 10:07:03 2025
-
-@author: Christian
-"""
 
 import numpy as np
 from numpy.fft import fft, ifft
 from scipy.optimize import minimize
-# from numba import jit
-from .auxiliar_functions import szego, mobius, predict, predict2, transition_matrix, inner_products_sum_2, split_complex #, seq_times
+from .auxiliar_functions import szego, mobius, predict, predict2, transition_matrix, inner_products_sum_2, split_complex
 from qpsolvers import solve_ls #, solve_qp
 
 def RSS_restr_betas(splitted_a, data_matrix, time_points, k, a_parameters, weights, beta_restrictions):
@@ -484,7 +478,6 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
         
         best_sum_RSS = np.inf
         best_a = None
-        print((0,k))
         
         for i in indices_k:
             
@@ -552,13 +545,10 @@ def fit_fmm_k_restr_all_params(analytic_data_matrix, time_points=None, n_back=No
         a_parameters[k] = best_a
             
     coefs_proj = project_betas(analytic_data_matrix.real, time_points, a_parameters, beta_restrictions)
-    
-    print(a_parameters)
-    
+
     if max_iter > 1:
         for iter_j in range(1,max_iter):
             for k_idx, k_val in enumerate(unique_groups):
-                print((iter_j,k))
                 indices_k = [i for i, g in enumerate(group_restrictions) if g == k_val]
                 k = k_idx+1
                 

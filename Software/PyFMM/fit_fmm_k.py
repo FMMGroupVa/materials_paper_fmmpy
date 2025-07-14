@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 19 09:46:50 2024
-
-@author: Christian
-"""
 
 import numpy as np
 from numpy.fft import fft, ifft

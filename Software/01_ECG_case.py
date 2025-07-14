@@ -1,15 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 28 12:10:21 2025
-
-@author: Christian
-"""
 
 import numpy as np
 import pandas as pd
-
-import os
-os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython")
 
 from PyFMM.fit_fmm import fit_fmm
 
@@ -44,13 +36,10 @@ res.plot_predictions(channel_names=lead_names, n_cols=3,
 
 # Plot results residuals:
 res.plot_residuals(channel_names=lead_names, n_cols=4,
-                   width=5.9, height=5, dpi=300, save_path="Results/Figures/ECGresiduals.png")
+                   width=5.9, height=3.5, dpi=300, save_path="Results/Figures/ECGresiduals.png")
 
 # CIs:
 alpha_ci, omega_ci, delta_ci, gamma_ci = res.conf_intervals(0.95, method=2)
 print(alpha_ci)
 res.show_conf_intervals()
-
-
-
 

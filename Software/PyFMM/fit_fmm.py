@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import scipy.signal as sc
-import time
 
 from .fit_fmm_k import fit_fmm_k
 from .fit_fmm_k_restr import (
@@ -33,8 +32,7 @@ def fit_fmm(
     data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=True,
     length_alpha_grid=48, omega_min=0.01, omega_max=0.99, length_omega_grid=24,
     omega_grid=None, alpha_restrictions=None, omega_restrictions=None,
-    group_restrictions=None, beta_min=None, beta_max=None, beta_restrictions=None,
-    verbose=True):
+    group_restrictions=None, beta_min=None, beta_max=None, beta_restrictions=None):
     """
     Fits a Frequency Modulated Möbius (FMM) model to a multivariate signal.
     
@@ -115,9 +113,31 @@ def fit_fmm(
         If any omega restriction lies outside the interval [`omega_min`, `omega_max`].
     Examples
     --------
-    print("To do")
+
+    Basic 5-component FMM fit without restrictions:
+    
+    >>> res = fit_fmm(data_matrix=df,        # Data: shape (n_channels, n_timepoints)
+    ...               n_back=5, max_iter=8)  # Model configuration
+    
+    Fit with restrictions on alpha and omega:
+    
+    >>> P_alpha = (4.2, 5.4)
+    >>> P_ome = (0.05, 0.25)
+    >>> QRS_alpha = (5.4, 6.2)
+    >>> QRS_ome = (0.01, 0.10)
+    >>> T_alpha = (0, 3.14)
+    >>> T_ome = (0.1, 0.5)
+    
+    >>> alpha_restr = np.array([P_alpha, QRS_alpha, QRS_alpha, QRS_alpha, T_alpha])
+    >>> omega_restr = np.array([P_ome, QRS_ome, QRS_ome, QRS_ome, T_ome])
+    
+    >>> res2 = fit_fmm(data_matrix=df,
+    ...                n_back=5, max_iter=8, post_optimize=True,
+    ...                alpha_restrictions=alpha_restr,
+    ...                omega_restrictions=omega_restr,
+    ...                omega_min=0.01, omega_max=0.5)
+    
     """
-    start = time.time()
 
     if isinstance(data_matrix, pd.DataFrame):
         data_matrix = data_matrix.values
@@ -166,7 +186,7 @@ def fit_fmm(
 
     if length_alpha_grid < 1:
         raise ValueError(ERROR_MESSAGES["grid_arguments"])
-    alpha_grid = np.exp(np.linspace(0, 2*np.pi, num=length_alpha_grid+1))[:-1]
+    alpha_grid = np.linspace(0, 2*np.pi, num=length_alpha_grid, endpoint=False)
 
     # Dispatch according to restriction configuration
     restricted_flag = False
@@ -242,7 +262,7 @@ def fit_fmm(
                     for (bmin, bmax) in row] for row in beta_restrictions]
             
         a, coefs, phis, prediction = fit_fmm_k_restr_all_params(
-            data_matrix=analytic_data_matrix,
+            analytic_data_matrix=analytic_data_matrix,
             time_points=time_points,
             n_back=n_back,
             max_iter=max_iter,
@@ -279,8 +299,5 @@ def fit_fmm(
         data=data_matrix, time_points=time_points, prediction=prediction.real,
         params=params, restricted=restricted_flag, max_iter=max_iter
     )
-
-    if verbose:
-        print(f"Exec. time: {time.time() - start:.4f} secs")
 
     return model

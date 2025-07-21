@@ -14,7 +14,7 @@ import sys
 if len(sys.argv) > 1:
     N_REPEATS = int(sys.argv[1])
 else:
-    N_REPEATS = 5
+    N_REPEATS = 100
 
 print(f"N_REPEATS set to: {N_REPEATS}")
 

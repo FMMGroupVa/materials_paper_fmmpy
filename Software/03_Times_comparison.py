@@ -13,7 +13,6 @@ if len(sys.argv) > 1:
 else:
     N_REPEATS = 100
 
-
 df = pd.read_csv('Data/ECG_data.csv', header=None)
 df_base = df.iloc[:, 350:850]  # 500 obs
 
@@ -108,7 +107,7 @@ for _ in range(N_REPEATS):
         alpha_restrictions=alpha_restr,
         omega_restrictions=omega_restr,
         omega_min=0.01,
-        omega_max=0.5
+        omega_max=0.5)
     end = time.perf_counter()
     times_restricted.append(end - start)
 

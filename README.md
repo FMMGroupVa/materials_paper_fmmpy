@@ -1,6 +1,6 @@
 # PyFMM
 
-**PyFMM** is the official repository for the paper:
+**PyFMM** [](https://github.com/FMMGroupVa/ModulePyFMM) is the official repository for the paper:
 
 > *PyFMM: A Python module for Frequency-Modulated Möbius Signal Decomposition*  
 > Christian Canedo, Rocío Carratalá-Sáez, Cristina Rueda

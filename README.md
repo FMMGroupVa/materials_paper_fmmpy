@@ -16,7 +16,7 @@ This repository contains the source code and documentation for the PyFMM Python 
 - Built-in diagnostics and visualization
   
 ## 📂 Reproducibility
-All instructions to reproduce the results and figures in the paper are included in the file Artifact_description.pdf.
+All instructions to reproduce the results and figures in the paper are included in the file `Artifact_description.pdf`.
 
 
 ## 📄 Paper Status

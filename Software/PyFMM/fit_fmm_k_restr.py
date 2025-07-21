@@ -37,6 +37,9 @@ def generate_G_ch(p, beta_restrictions_ch):
         row_i += 1
     return G
 
+def is_effectively_unrestricted(restr_list):
+    return all((r is None or (r[0] is None and r[1] is None)) for r in restr_list)
+
 def project_betas(data_matrix, time_points, a, beta_restrictions):
     
     n_back = len(a) - 1
@@ -57,9 +60,12 @@ def project_betas(data_matrix, time_points, a, beta_restrictions):
     
     # 5. Solve LSQ problem for all channels
     for ch_i in range(n_ch):
-        G = generate_G_ch(n_back, beta_restrictions[ch_i])
-        RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], G=G, h=h, solver='quadprog')
-        # RLS[ch_i] = solve_qp(DM.T@DM, -DM.T@data_matrix[ch_i], G=G, h=h, solver='quadprog')
+        if is_effectively_unrestricted(beta_restrictions[ch_i]):
+            RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], solver='quadprog')
+        else:
+            G = generate_G_ch(n_back, beta_restrictions[ch_i])
+            h = np.zeros(G.shape[0])
+            RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], G=G, h=h, solver='quadprog')
     
     # 6. Compute betas, amplitudes, and phis using vectorized operations
     betas = np.arctan2(-RLS[:, 2::2], RLS[:, 1::2]) % (2*np.pi)
@@ -92,18 +98,21 @@ def project_betas_2(data_matrix, weights, time_points, a, beta_restrictions):
     
     # 5. Solve LSQ problem for all channels
     for ch_i in range(n_ch):
-        G = generate_G_ch(n_back, beta_restrictions[ch_i])
-        RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], G=G, h=h, solver='quadprog')
-        
-        # RLS[ch_i] = solve_qp(DM.T @ DM, -DM.T@data_matrix[ch_i], G=G, h=h, solver='quadprog')
+        if is_effectively_unrestricted(beta_restrictions[ch_i]):
+            RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], solver='quadprog')
+        else:
+            G = generate_G_ch(n_back, beta_restrictions[ch_i])
+            h = np.zeros(G.shape[0])
+            RLS[ch_i] = solve_ls(DM, data_matrix[ch_i], G=G, h=h, solver='quadprog')
     
     prediction = np.dot(DM, RLS.T)
     res_sq = (data_matrix - prediction.T)**2
-    rss_ch = np.sum(res_sq, axis=1)  # shape (4,)
+    rss_ch = np.sum(res_sq, axis=1)
     weighted_rss = np.sum(weights * rss_ch)
     
     # Return AFD coefs
     return weighted_rss
+
 
 def fit_fmm_k_restr_alpha_omega(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
                     omega_grid=None, weights=None, post_optimize=True, 

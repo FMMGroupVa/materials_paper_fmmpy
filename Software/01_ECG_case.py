@@ -6,7 +6,7 @@ import pandas as pd
 from PyFMM.fit_fmm import fit_fmm
 
 # Data: ECG beat 
-df = pd.read_csv(r'Data\ECG_data.csv', header=None)
+df = pd.read_csv('Data/ECG_data.csv', header=None)
 df = df.iloc[:,400:800]
 
 # Fit FMM to data

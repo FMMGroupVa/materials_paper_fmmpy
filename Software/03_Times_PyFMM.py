@@ -67,13 +67,11 @@ for n_obs in n_obs_values:
                             max_iter=max_iter,
                             post_optimize=post_optimize,
                             omega_min=0.01,
-                            omega_max=0.5,
-                            verbose=False
+                            omega_max=0.5
                         )
                         end = time.perf_counter()
                         elapsed = end - start
                         times.append(elapsed)
-
                     results.append({
                         'channels': channels,
                         'n_back': n_back,

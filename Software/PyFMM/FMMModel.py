@@ -317,6 +317,98 @@ class FMMModel:
     
         return "\n".join(lines)
     
+    def plot_predictions_and_components(self, channels=None, channel_names=None,
+                                    save_path=None, height=None, width=None, dpi=None, show=True):
+        """
+        Plot predictions and components for each channel in a two-row layout.
+        
+        The top row shows the original signal and FMM prediction.
+        The bottom row shows the FMM components for the same channels.
+        
+        Parameters
+        ----------
+        channels : list of int or None, optional
+            Indices of channels to plot. If None, all channels are plotted.
+        
+        channel_names : list of str or None, optional
+            Custom names for each channel. Used for subplot titles.
+        
+        save_path : str or None, optional
+            Path to save the figure. If None, the plot is shown instead.
+        
+        height : float or None, optional
+            Total figure height in inches. If None, it is set automatically.
+        
+        width : float or None, optional
+            Total figure width in inches. If None, it is set automatically.
+        
+        dpi : int or None, optional
+            Dots per inch for the figure.
+        
+        show : bool, default=True
+            Whether to show the plot.
+        """
+        # Selección de canales
+        if channels is None:
+            channels = np.arange(self.n_ch)
+        if len(channels) > self.n_ch:
+            channels = channels[:self.n_ch]
+        
+        n_channels = len(channels)
+        n_rows = 2  # fila 0: predicción, fila 1: componentes
+        n_cols = n_channels
+    
+        if height is None:
+            height = 6
+        if width is None:
+            width = 4 * n_cols
+    
+        fig_area = width * height
+        base_fontsize = max(6, min(12, fig_area * 0.1))
+    
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(width, height),
+                                 squeeze=False, dpi=dpi, constrained_layout=True)
+    
+        if not isinstance(channel_names, list) and channel_names is not None:
+            channel_names = [channel_names]
+    
+        time_points = self.time_points[0]
+        waves = self._get_waves_ch(self.n_obs)
+        colors = plt.cm.tab10.colors
+    
+        for idx, ch in enumerate(channels):
+            name = (channel_names[idx] if channel_names and idx < len(channel_names)
+                    else f"Channel {ch}")
+    
+            # Predicciones
+            ax_pred = axes[0][idx]
+            ax_pred.plot(time_points, self.data[ch], label="Data", color="tab:gray", linewidth=1.0)
+            ax_pred.plot(time_points, self.prediction[ch].real, label="Prediction", color="#0055aa", linewidth=1.5)
+            ax_pred.set_title(name, fontsize=base_fontsize + 2)
+            ax_pred.grid(True)
+            ax_pred.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+            ax_pred.set_xticklabels([])
+            ax_pred.tick_params(axis='x', length=0)
+            ax_pred.tick_params(axis='y', labelsize=base_fontsize)
+    
+            # Componentes
+            ax_comp = axes[1][idx]
+            comps = waves[ch]
+            for i, comp in enumerate(comps):
+                comp_zeroed = comp - comp[0]
+                ax_comp.plot(time_points, comp_zeroed, label=f"Comp {i+1}", color=colors[i % len(colors)])
+            ax_comp.grid(True)
+            ax_comp.set_xticks([0, np.pi/2, np.pi, 3*np.pi/2, 2*np.pi])
+            ax_comp.set_xticklabels([r"$0$", r"$\frac{\pi}{2}$", r"$\pi$", r"$\frac{3\pi}{2}$", r"$2\pi$"])
+            ax_comp.tick_params(axis='y', labelsize=base_fontsize)
+    
+        if save_path is not None:
+            plt.savefig(save_path, dpi=dpi, bbox_inches="tight")
+        if show:
+            plt.show()
+        else:
+            plt.close()
+            
     def plot_predictions(self, channels=None, channel_names=None, n_cols=None,
                          save_path=None, height=None, width=None, dpi=None, show=True):
         """

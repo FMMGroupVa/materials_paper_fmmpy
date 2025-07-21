@@ -6,7 +6,8 @@ from scipy.optimize import minimize
 from .auxiliar_functions import szego, mobius, predict2, transition_matrix, split_complex, inner_products_sum_2
 
 def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None,
-              omega_grid=None, weights=None, post_optimize=True, omega_min=0.01, omega_max=1):
+              omega_grid=None, weights=None, channel_weights=None, 
+              post_optimize=True, omega_min=0.01, omega_max=1):
     
     if(analytic_data_matrix.ndim == 2):
         n_ch, n_obs = analytic_data_matrix.shape
@@ -36,7 +37,8 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
     coefs = np.zeros((n_ch, n_back+1), dtype=complex)
     phis = np.zeros((n_ch, n_back+1), dtype=complex)
     a_parameters = np.zeros(n_back+1, dtype=complex)
-
+    sigma_weights = np.copy(weights) 
+    
     # Start decomposing: c0 (mean)
     # Remainder R_(k+1) = ( R_k - c_k*e_ak(t) ) / m_ak(t)
     # e_ak := szego(ak, t)
@@ -46,7 +48,7 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
     for ch_i in range(n_ch):
         coefs[ch_i,0] = np.mean(analytic_data_matrix[ch_i,:])
         remainder[ch_i,:] = ((analytic_data_matrix[ch_i,:] - coefs[ch_i,0])/z)
-    # transition_mat = np.zeros((n_back+1, n_back+1), dtype = "complex")
+        sigma_weights[ch_i] = 1/np.var((analytic_data_matrix[ch_i,:] - coefs[ch_i,0]).real)
     
     ## 1 Iteration of the backfitting algorithm: fit k waves
     for k in range(1, n_back+1):
@@ -54,20 +56,31 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
         abs_coefs = 0
         for ch_i in range(n_ch):
             #abs_coefs += np.abs(ifft(pymat.repmat(fft(analytic_data_matrix[ch_i, :], n_obs), an_search_len, 1) * base, n_obs, 1))
-            abs_coefs += weights[ch_i]*np.abs(ifft(np.repeat(fft(
+            abs_coefs += channel_weights[ch_i] * sigma_weights[ch_i]*np.abs(ifft(np.repeat(fft(
                 remainder[ch_i, :], n_obs)[np.newaxis, :], 
                 an_search_len, axis=0) * base, n_obs, 1))
         abs_coefs = abs_coefs.T # n_obs x n_omegas
         
         # Best a
-        max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
+        mask_used = np.isclose(
+            afd_grid[..., np.newaxis], 
+            np.array(a_parameters[:k]),  
+            atol=1e-10, rtol=1e-5
+        ).any(axis=2)
+
+        # Penalizar los que ya están usados
+        abs_coefs_masked = np.copy(abs_coefs)
+        abs_coefs_masked[mask_used] = -np.inf
+        
+        # Buscar el máximo sobre los no usados
+        max_loc_tmp = np.argwhere(abs_coefs_masked == np.amax(abs_coefs_masked))
         best_a = afd_grid[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
         
         ## STEP 2: Postoptimization - Profile log-likelihood.
         if(post_optimize):
             res = minimize(
                 inner_products_sum_2, x0=split_complex(best_a), 
-                args=(remainder, time_points, weights), 
+                args=(remainder, time_points, channel_weights * sigma_weights), 
                 # Bounds: (-2pi, 4pi) para explorar bien parametro circular
                 method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi), ((1-omega_max)/(1+omega_max),(1-omega_min)/(1+omega_min))],
                 tol=1e-4, options={'disp': False})
@@ -94,7 +107,7 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
                 # Calculate the standard reminder (data-prediction) without component k:  r = X - sum ci*Bi, i != j
                 # std_remainder = analytic_data_matrix - predict(np.delete(a_parameters, k, axis=0), np.delete(coefs, k, axis=1), time_points)
                 std_remainder = analytic_data_matrix - predict2(np.delete(a_parameters, k, axis=0), analytic_data_matrix, time_points)[0]
-                weights = 1/np.var(std_remainder.real, axis=1, ddof=1)
+                sigma_weights = 1/np.var(std_remainder.real, axis=1, ddof=1)
                 
                 # Calculate the reduced reminder reminder/(z*mob1*...,mobK) (without k)
                 blaschke = blaschke / mobius(a_parameters[k], time_points)
@@ -103,19 +116,29 @@ def fit_fmm_k(analytic_data_matrix, time_points=None, n_back=None, max_iter=None
                 abs_coefs = 0
                 for ch_i in range(n_ch):
                     #abs_coefs += np.abs(ifft(pymat.repmat(fft(analytic_data_matrix[ch_i, :], n_obs), an_search_len, 1) * base, n_obs, 1))
-                    abs_coefs += weights[ch_i]*np.abs(ifft(np.repeat(fft(
+                    abs_coefs += channel_weights[ch_i]*sigma_weights[ch_i]*np.abs(ifft(np.repeat(fft(
                         remainder[ch_i, :], n_obs)[np.newaxis, :], 
                         an_search_len, axis=0) * base, n_obs, 1))
                     
                 abs_coefs = abs_coefs.T # n_obs x n_omegas
                 
                 # Best a
-                max_loc_tmp = np.argwhere(abs_coefs == np.amax(abs_coefs))
+                mask_used = np.isclose(
+                    afd_grid[..., np.newaxis], 
+                    np.array(a_parameters[:k]),
+                    atol=1e-10, rtol=1e-5
+                    ).any(axis=2)
+
+
+                abs_coefs_masked = np.copy(abs_coefs)
+                abs_coefs_masked[mask_used] = -np.inf
+
+                max_loc_tmp = np.argwhere(abs_coefs_masked == np.amax(abs_coefs_masked))
                 best_a = afd_grid[max_loc_tmp[0, 0], max_loc_tmp[0, 1]]
                 if(post_optimize):
                     res = minimize(
                         inner_products_sum_2, x0=split_complex(best_a), 
-                        args=(remainder, time_points, weights), 
+                        args=(remainder, time_points, channel_weights*sigma_weights), 
                         # Bounds: (-2pi, 4pi) to explore the cicular parameter without restrictions
                         method='L-BFGS-B', bounds=[(-2*np.pi, 4*np.pi), ((1-omega_max)/(1+omega_max),(1-omega_min)/(1+omega_min))],
                         options={'disp': False})

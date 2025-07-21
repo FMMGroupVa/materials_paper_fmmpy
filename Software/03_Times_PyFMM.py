@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-import os
-os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython")
 
 import numpy as np
 import pandas as pd
@@ -33,8 +30,6 @@ n_obs_values = [250, 500, 750, 1000]
 n_back_values = [2, 3, 4, 5]
 max_iter_values = [1, 5, 10, 15, 20]
 post_optimize_values = [True, False]
-
-N_REPEATS = 100
 
 # ========= Store results =========
 results = []

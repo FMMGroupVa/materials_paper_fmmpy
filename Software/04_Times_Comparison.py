@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
-os.chdir(r"C:\Users\Christian\Documents\GitHub\PaquetePython")
-
 import numpy as np
 import pandas as pd
 import scipy.signal as sc
@@ -17,7 +14,7 @@ else:
     N_REPEATS = 100
 
 
-df = pd.read_csv(r'Data\ECG_data.csv', header=None)
+df = pd.read_csv('Data/ECG_data.csv', header=None)
 df_base = df.iloc[:, 350:850]  # 500 obs
 
 def run_afd_decomposition(data_matrix, n_back=5):
@@ -61,8 +58,7 @@ for i in range(N_REPEATS):
         post_optimize=False,
         length_omega_grid=50,
         omega_min=0.01,
-        omega_max=0.5,
-        verbose=False
+        omega_max=0.5
     )
     end = time.perf_counter()
     elapsed = end - start
@@ -112,9 +108,7 @@ for _ in range(N_REPEATS):
         alpha_restrictions=alpha_restr,
         omega_restrictions=omega_restr,
         omega_min=0.01,
-        omega_max=0.5,
-        verbose=False
-    )
+        omega_max=0.5
     end = time.perf_counter()
     times_restricted.append(end - start)
 
@@ -127,8 +121,7 @@ for _ in range(N_REPEATS):
         max_iter=8,
         post_optimize=True,
         omega_min=0.01,
-        omega_max=0.5,
-        verbose=False
+        omega_max=0.5
     )
     end = time.perf_counter()
     times_unrestricted.append(end - start)

@@ -67,8 +67,7 @@ for n_obs in n_obs_values:
                 omega_max=0.1,
                 length_alpha_grid=50,
                 beta_min=np.pi - 0.2,
-                beta_max=np.pi + 0.2,
-                verbose=False
+                beta_max=np.pi + 0.2
             )
             end = time.perf_counter()
             times.append(end - start)
@@ -106,8 +105,7 @@ for n_back in n_back_values:
                     omega_max=0.1,
                     length_alpha_grid=50,
                     beta_min=np.pi - 0.25,
-                    beta_max=np.pi + 0.25,
-                    verbose=False
+                    beta_max=np.pi + 0.25
                 )
                 end = time.perf_counter()
                 times.append(end - start)

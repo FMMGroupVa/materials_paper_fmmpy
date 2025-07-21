@@ -25,11 +25,12 @@ ERROR_MESSAGES = {
     "exc_alpha_omega_restr_1": "Arrays containing restrictions have different lengths.",
     "algorithm_arguments": "'n_back' and 'max_iter' must be >1.",
     "grid_arguments": "'omega_grid' and 'length_alpha_grid' must be positive.",
-    "post_optimize_arguments": "'post_optimize' must be a logical value."
+    "post_optimize_arguments": "'post_optimize' must be a logical value.",
+    "channel_weight_arguments": "'channel_weights' length do not match the number of channels or weights are not all positives."
 }
 
 def fit_fmm(
-    data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=True,
+    data_matrix, time_points=None, n_back=1, max_iter=1, post_optimize=True, channel_weights=None,
     length_alpha_grid=48, omega_min=0.01, omega_max=0.99, length_omega_grid=24,
     omega_grid=None, alpha_restrictions=None, omega_restrictions=None,
     group_restrictions=None, beta_min=None, beta_max=None, beta_restrictions=None):
@@ -56,6 +57,9 @@ def fit_fmm(
     post_optimize : bool, optional
         If True, post-optimization of coefficients is performed (default is True).
         
+    channel_weights : numpy.ndarray
+        Vector of weights for ecah lead in the optimization funcion (default is all 1). 
+    
     length_alpha_grid : int, optional
         Number of points in the alpha grid, only in restricted fittings. Must be > 0. Default is 48.
         
@@ -103,6 +107,7 @@ def fit_fmm(
     ValueError
         If `data_matrix` is not 2-dimensional.
         If `n_back < 1` or `max_iter < 1`.
+        If `channel_weights` length does not match the number of channels of are not positive.
         If `omega_min <= 0` or `omega_max >= 1`.
         If only one of `beta_min` or `beta_max` is provided.
         If `beta_min` or `beta_max` are not in [0, 2π].
@@ -176,7 +181,7 @@ def fit_fmm(
         raise ValueError(ERROR_MESSAGES["algorithm_arguments"])
     if not isinstance(post_optimize, bool):
         raise TypeError(ERROR_MESSAGES["post_optimize_arguments"])
-
+    
     n_ch, n_obs = data_matrix.shape
 
     if omega_grid is None:
@@ -192,7 +197,13 @@ def fit_fmm(
     restricted_flag = False
     if time_points is None:
         time_points = seq_times(n_obs)
-
+    
+    if channel_weights is None:
+        channel_weights = np.ones(n_ch)
+        
+    if not (len(channel_weights) == n_ch and np.all(np.array(channel_weights) > 0)):
+        raise ValueError(ERROR_MESSAGES["channel_weight_arguments"])
+        
     analytic_data_matrix = sc.hilbert(data_matrix, axis=1)
     
     if alpha_restrictions is None and omega_restrictions is None and beta_min is None and beta_max is None:
@@ -203,6 +214,7 @@ def fit_fmm(
             max_iter=max_iter,
             omega_grid=omega_grid,
             weights=np.ones(n_ch),
+            channel_weights=channel_weights,
             post_optimize=post_optimize,
             omega_min=omega_min,
             omega_max=omega_max
@@ -218,6 +230,7 @@ def fit_fmm(
             max_iter=max_iter,
             omega_grid=omega_grid,
             weights=np.ones(n_ch),
+            channel_weights=channel_weights,
             post_optimize=post_optimize,
             omega_min=omega_min,
             omega_max=omega_max,
@@ -245,6 +258,7 @@ def fit_fmm(
             alpha_grid=alpha_grid,
             omega_grid=omega_grid,
             weights=np.ones(n_ch),
+            channel_weights=channel_weights,
             post_optimize=post_optimize,
             omega_min=omega_min,
             omega_max=omega_max,
@@ -269,6 +283,7 @@ def fit_fmm(
             alpha_grid=alpha_grid,
             omega_grid=omega_grid,
             weights=np.ones(n_ch),
+            channel_weights=channel_weights,
             post_optimize=post_optimize,
             omega_min=omega_min,
             omega_max=omega_max,

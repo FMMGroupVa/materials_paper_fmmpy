@@ -16,7 +16,7 @@ else:
     N_REPEATS = 100
     
 # ====== Data: ECG beat (Could be simulated) ======
-df = pd.read_csv(r'Data\ECG_data.csv', header=None)
+df = pd.read_csv('Data/ECG_data.csv', header=None)
 df_base = df.iloc[:, 350:850]  # 500 obs
 
 # ====== Test configurations ======

@@ -1,0 +1,15 @@
+LICENSE
+MANIFEST.in
+README.md
+pyproject.toml
+fmmpy/FMMModel.py
+fmmpy/__init__.py
+fmmpy/auxiliar_functions.py
+fmmpy/fit_fmm.py
+fmmpy/fit_fmm_k.py
+fmmpy/fit_fmm_k_restr.py
+fmmpy.egg-info/PKG-INFO
+fmmpy.egg-info/SOURCES.txt
+fmmpy.egg-info/dependency_links.txt
+fmmpy.egg-info/requires.txt
+fmmpy.egg-info/top_level.txt

@@ -1,0 +1,30 @@
+[project]
+name = "fmmpy_test"
+version = "1.0.0"
+description = "Frequency-Modulated Möbius decomposition for multichannel signals"
+authors = [
+    { name = "Christian Canedo" , email = "christian.canedo@uva.es"},
+    { name = "Rocío Carratalá-Sáez" },
+    { name = "Cristina Rueda" }
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+  "numpy >= 1.25",
+  "scipy >= 1.10",
+  "pandas >= 1.5",
+  "numba >= 0.57",
+  "qpsolvers >= 3.0",
+  "matplotlib >= 3.7",
+  "quadprog >= 0.1.13"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/FMMGroupVa/fmmpy"
+Repository = "https://github.com/FMMGroupVa/fmmpy"

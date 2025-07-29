@@ -1,0 +1,7 @@
+AFD:
+Mean execution time over 5 runs: 0.0945 s
+Max time: 0.1083 s
+
+FMM:
+Mean execution time over 5 runs: 0.0377 s
+Max time: 0.0397 s

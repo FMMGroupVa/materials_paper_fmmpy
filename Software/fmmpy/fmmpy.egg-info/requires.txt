@@ -1,7 +1,0 @@
-numpy>=1.25
-scipy>=1.10
-pandas>=1.5
-numba>=0.57
-qpsolvers>=3.0
-matplotlib>=3.7
-quadprog>=0.1.13

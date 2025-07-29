@@ -10,6 +10,15 @@ from scipy.interpolate import interp1d
 import time
 import scipy.signal as sc
 
+from pip._internal.cli.main import main as pip_main
+import os
+
+def install_requirements(requirements_path='requirements.txt'):
+    if not os.path.isfile(requirements_path):
+        raise FileNotFoundError(f"Could not find {requirements_path}")
+    print(f"Installing from '{requirements_path}' using pip._internal...")
+    pip_main(['install', '-r', requirements_path])
+
 def run_script(filename, *args):
     try:
         with open(filename, 'r', encoding='utf-8') as file:
@@ -24,15 +33,13 @@ def run_script(filename, *args):
 def show_menu():
     print("\n===== SCRIPT MENU =====")
     print("\nReproducing Results")
-    print("  1. Run 01_Use_cases.py \n\tEstimated running time: <2 min.\n\tPurpose: run ECG and XPS test cases")
-
+    print("  1. Run Use cases \n\tEstimated running time: ~2 min.\n\tPurpose: run ECG and XPS test cases")
     print("\nRunning Benchmarks")
-    print("  2. Run 02_Times_PyFMM.py \n\tEstimated running time: 12-24hours (100 REPS) \n\tPurpose: scalability test (Fig. 4)")
-    print("  3. Run 04_Times_Comparison.py \n\tEstimated running time: <10 min. (100 REPS) \n\tPurpose: compare with similar softwares")
-    print("  4. Run 05_Times_Linears.py \n\tEstimated running time: 12-24hours (100 REPS)\n\tPurpose: check impact of linear restrictions (Fig. 5)")
-
-    print("\n5. Run all scripts")
-
+    print("  2. Scalability tests (Fig. 4) \n\tEstimated running time: ~12hours (100 REPS)")
+    print("  3. AFD-FMM comparison \n\tEstimated running time: ~1 min. (100 REPS)")
+    print("  4. Measure impact of restrictions on nonlinear params \n\tEstimated running time: ~1 min. (100 REPS)")
+    print("  5. Measure impact of restrictions on linear params (Scalability tests) (Fig. 5)\n\tEstimated running time: ~12hours (100 REPS)")
+    print("\n6. Run all scripts")
     print("\n0. Exit")
 
 def test_1():
@@ -63,11 +70,13 @@ def test_1():
     # Plot results fit:
     lead_names = ["I", "II", "III", "aVR", "aVL", "aVF", "V1", "V2", "V3", "V4", "V5", "V6"]
     res.plot_predictions(channel_names=lead_names, n_cols=3,
-                         width=5.9, height=5, dpi=300, save_path="Results/Figures/ECGfit.png")
+                         width=5.9, height=5, dpi=300, save_path="Results/Figures/ECGfit.png",
+                         show=False)
     
     # Plot results residuals:
     res.plot_residuals(channel_names=lead_names, n_cols=4,
-                       width=5.9, height=3.5, dpi=300, save_path="Results/Figures/ECGresiduals.png")
+                       width=5.9, height=3.5, dpi=300, save_path="Results/Figures/ECGresiduals.png",
+                       show=False)
     
     # CIs:
     alpha_ci, omega_ci, delta_ci, gamma_ci = res.conf_intervals(0.95, method=2)
@@ -87,7 +96,6 @@ def test_1():
     plt.tight_layout()
     plt.grid()
     plt.savefig("Results/Figures/Fe2p.png", dpi=600, bbox_inches='tight')
-    plt.show()
     
     spectrum = df.iloc[0, :]
     
@@ -99,26 +107,30 @@ def test_1():
                    omega_min=0.01) # Parameter control
     
     res2.plot_predictions(channels=[0], channel_names=[""],
-                         dpi=300, width=2.8, height=2,
-                         save_path="Results/Figures/Fe2p_example.png")
+                          dpi=300, width=2.8, height=2,
+                          save_path="Results/Figures/Fe2p_example.png",
+                          show=False)
     res2.plot_components(channels=[0], channel_names=[""],
                          dpi=300, width=2.8, height=2,
-                         save_path="Results/Figures/Fe2p_comp_example.png")
+                         save_path="Results/Figures/Fe2p_comp_example.png",
+                         show=False)
     
     alpha_restr = np.array([(0.1,2.9) for i in range(n_back)])
     
     res3 = fit_fmm(data_matrix=spectrum, # Data
-                  n_back=n_back, max_iter=max_iter, post_optimize=True,  # Fit options
-                  omega_min=0.01, omega_max=0.1,
-                  length_alpha_grid=100, alpha_restrictions=alpha_restr,
-                  beta_min=np.pi-0.25, beta_max=np.pi+0.25)
+                   n_back=n_back, max_iter=max_iter, post_optimize=True,  # Fit options
+                   omega_min=0.01, omega_max=0.1,
+                   length_alpha_grid=100, alpha_restrictions=alpha_restr,
+                   beta_min=np.pi-0.25, beta_max=np.pi+0.25)
     
     res3.plot_predictions(channels=[0], channel_names=[""],
                          dpi=300, width=2.8, height=2,
-                         save_path="Results/Figures/Fe2p_example_restr.png")
+                         save_path="Results/Figures/Fe2p_example_restr.png",
+                         show=False)
     res3.plot_components(channels=[0], channel_names=[""],
                          dpi=300, width=2.8, height=2,
-                         save_path="Results/Figures/Fe2p_comp_example_restr.png")
+                         save_path="Results/Figures/Fe2p_comp_example_restr.png",
+                         show=False)
 
 def test_2(N_REPEATS):
         
@@ -328,7 +340,6 @@ def test_2(N_REPEATS):
     plt.grid(True)
     
     plt.savefig('Results/Figures/times2.pdf', bbox_inches='tight')
-    plt.show()
 
 def test_3(N_REPEATS):
         
@@ -400,6 +411,10 @@ def test_3(N_REPEATS):
     
     print("\nResults saved to 'Results/execution_times_FMM_AFD.txt'")
     
+def test_4(N_REPEATS):
+    
+    df = pd.read_csv('Data/ECG_data.csv', header=None)
+    df_base = df.iloc[:, 350:850]  # 500 obs
     
     P_alpha = (4.2, 5.4)
     P_ome = (0.05, 0.25)
@@ -450,9 +465,6 @@ def test_3(N_REPEATS):
     mean_unrestricted = np.mean(times_unrestricted)
     max_unrestricted = np.max(times_unrestricted)
     
-    print(f"Restricted mean: {mean_restricted:.4f} s (max: {max_restricted:.4f} s)")
-    print(f"Unrestricted mean: {mean_unrestricted:.4f} s (max: {max_unrestricted:.4f} s)")
-    
     # === Guardar a fichero ===
     output_text = (
         f"Restricted:\n"
@@ -468,7 +480,7 @@ def test_3(N_REPEATS):
     
     print("\nResults saved to 'Results/execution_times_restriction_comparison.txt'")
 
-def test_4(N_REPEATS):
+def test_5(N_REPEATS):
         
     df_raw = pd.read_csv('Data/XPS_Fe2p_data.csv')
     df_signal = df_raw.iloc[:, 1:5].T
@@ -618,7 +630,6 @@ def test_4(N_REPEATS):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('Results/Figures/XPS_times1.pdf', dpi=300, transparent=True, bbox_inches='tight')
-    plt.show()
     
     
     # === Leer resultados ===
@@ -691,10 +702,9 @@ def test_4(N_REPEATS):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('Results/Figures/XPS_times2.pdf', dpi=300, transparent=True, bbox_inches='tight')
-    plt.show()
-    
     
 def main():
+    install_requirements('requirements.txt')
     while True:
         show_menu()
         try:
@@ -703,34 +713,36 @@ def main():
                 print("Exiting.")
                 break
             
-            nreps = input("\nEnter the number of repetitions for each test (100 by default): ").strip()
-                
-            if nreps.isdigit():
-                nreps = int(nreps)
-            else:
-                nreps = 100
-                
+            if choice != '1':
+                nreps = input("\nEnter the number of repetitions for each test (100 by default): ").strip()
+
+                if nreps.isdigit():
+                    nreps = int(nreps)
+                else:
+                    nreps = 100
+            
             if choice == '1':
-                # run_script("01_Use_cases.py", int(nreps))
                 test_1()
+                
             elif choice == '2':
-                # run_script("02_Times_PyFMM.py", int(nreps))
                 test_2(nreps)
+                
             elif choice == '3':
-                # run_script("03_Times_Comparison.py", int(nreps))
                 test_3(nreps)
+                
             elif choice == '4':
-                # run_script("04_Times_Linears.py", int(nreps))
                 test_4(nreps)
+                
             elif choice == '5':
-                # run_script("01_Use_cases.py", int(nreps))
-                # run_script("02_Times_PyFMM.py", int(nreps))
-                # run_script("03_Times_Comparison.py", int(nreps))
-                # run_script("04_Times_Linears.py", int(nreps))
+                test_5(nreps)
+                
+            elif choice == '6':
                 test_1()
                 test_2(nreps)
                 test_3(nreps)
                 test_4(nreps)
+                test_5(nreps)
+                
             else:
                 print("Invalid selection. Please choose a number from the menu.")
         except Exception as e:

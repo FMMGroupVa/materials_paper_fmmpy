@@ -1,23 +1,26 @@
 
-from fmmpy import fit_fmm
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from matplotlib.lines import Line2D
-from AFDCal import AFDCal
-from scipy.interpolate import interp1d
-import time
-import scipy.signal as sc
-
-from pip._internal.cli.main import main as pip_main
 import os
+from pip._internal.cli.main import main as pip_main
 
 def install_requirements(requirements_path='requirements.txt'):
     if not os.path.isfile(requirements_path):
         raise FileNotFoundError(f"Could not find {requirements_path}")
-    print(f"Installing from '{requirements_path}' using pip._internal...")
+    
+    print(f"Installing from '{requirements_path}' using pip...")
     pip_main(['install', '-r', requirements_path])
+
+def import_dependencies():
+    global np, pd, plt, sns, Line2D, AFDCal, interp1d, time, sc, fit_fmm
+    import numpy as np
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from matplotlib.lines import Line2D
+    from AFDCal import AFDCal
+    from scipy.interpolate import interp1d
+    import time
+    import scipy.signal as sc
+    from fmmpy import fit_fmm
 
 def run_script(filename, *args):
     try:
@@ -33,17 +36,18 @@ def run_script(filename, *args):
 def show_menu():
     print("\n===== SCRIPT MENU =====")
     print("\nReproducing Results")
-    print("  1. Run Use cases \n\tEstimated running time: ~2 min.\n\tPurpose: run ECG and XPS test cases")
+    print("  1. RUN USE CASES \n\tEstimated running time: ~2 min.")
     print("\nRunning Benchmarks")
     print("  2. Scalability tests (Fig. 4) \n\tEstimated running time: ~12hours (100 REPS)")
     print("  3. AFD-FMM comparison \n\tEstimated running time: ~1 min. (100 REPS)")
     print("  4. Measure impact of restrictions on nonlinear params \n\tEstimated running time: ~1 min. (100 REPS)")
     print("  5. Measure impact of restrictions on linear params (Scalability tests) (Fig. 5)\n\tEstimated running time: ~12hours (100 REPS)")
-    print("\n6. Run all scripts")
+    print("\n6. Run full script >24h (100 REPS).")
     print("\n0. Exit")
 
 def test_1():
-    
+    print("\n--Running: 1. Run Use cases.")
+
     df = pd.read_csv('Data/ECG_data.csv', header=None)
     df = df.iloc[:,400:800]
     
@@ -133,7 +137,8 @@ def test_1():
                          show=False)
 
 def test_2(N_REPEATS):
-        
+    print("\nRunning: 2. Scalability tests (Fig. 4).")
+    
     # ====== Data: ECG beat (Could be simulated) ======
     df = pd.read_csv('Data/ECG_data.csv', header=None)
     df_base = df.iloc[:, 350:850]  # 500 obs
@@ -154,6 +159,7 @@ def test_2(N_REPEATS):
     results = []
     
     for n_obs in n_obs_values:
+        
         if n_obs <= df_base.shape[1]:
             df_obs = df_base.iloc[:, :n_obs]
         else:
@@ -167,9 +173,10 @@ def test_2(N_REPEATS):
             df_obs = pd.DataFrame(interpolated)
     
         for channels in channels_values:
+            print(f"Run: n_obs={n_obs}, channels={channels}")
             data_subset = df_obs.iloc[0:channels, :]
             for n_back in n_back_values:
-                print(f"Run: channels={channels}, n_back={n_back}")
+                
                 for max_iter in max_iter_values:
                     for post_optimize in post_optimize_values:
                         times = []
@@ -342,6 +349,7 @@ def test_2(N_REPEATS):
     plt.savefig('Results/Figures/times2.pdf', bbox_inches='tight')
 
 def test_3(N_REPEATS):
+    print("\n--Running: 3. AFD-FMM comparison.")
         
     df = pd.read_csv('Data/ECG_data.csv', header=None)
     df_base = df.iloc[:, 350:850]  # 500 obs
@@ -412,6 +420,7 @@ def test_3(N_REPEATS):
     print("\nResults saved to 'Results/execution_times_FMM_AFD.txt'")
     
 def test_4(N_REPEATS):
+    print("\n--Running: 4. Restrictions on nonlinear params.")
     
     df = pd.read_csv('Data/ECG_data.csv', header=None)
     df_base = df.iloc[:, 350:850]  # 500 obs
@@ -481,7 +490,8 @@ def test_4(N_REPEATS):
     print("\nResults saved to 'Results/execution_times_restriction_comparison.txt'")
 
 def test_5(N_REPEATS):
-        
+    print("\n--Running: 5. Restrictions on linear params.")
+    
     df_raw = pd.read_csv('Data/XPS_Fe2p_data.csv')
     df_signal = df_raw.iloc[:, 1:5].T
     
@@ -499,6 +509,7 @@ def test_5(N_REPEATS):
     results = []
     
     for n_obs in n_obs_values:
+    
         # Interpolación si hace falta
         orig_time = np.linspace(0, 1, df_signal.shape[1])
         new_time = np.linspace(0, 1, n_obs)
@@ -509,13 +520,12 @@ def test_5(N_REPEATS):
         df_obs = pd.DataFrame(interpolated)
     
         for channels in channels_values:
+            print(f'Run: n_obs={n_obs}, channels={channels}')
             # Repetir si hace falta
             times_to_repeat = int(np.ceil(channels / df_obs.shape[0]))
             df_expanded = pd.concat([df_obs] * times_to_repeat, ignore_index=True)
             df_subset = df_expanded.iloc[0:channels, :]
-    
-            print(f'Run: channels={channels}, n_obs={n_obs}')
-            
+
             times = []
             for _ in range(N_REPEATS):
                 start = time.perf_counter()
@@ -532,7 +542,6 @@ def test_5(N_REPEATS):
                 )
                 end = time.perf_counter()
                 times.append(end - start)
-                print(end - start)
             results.append({
                 'channels': channels,
                 'n_obs': n_obs,
@@ -705,6 +714,7 @@ def test_5(N_REPEATS):
     
 def main():
     install_requirements('requirements.txt')
+    import_dependencies()
     while True:
         show_menu()
         try:

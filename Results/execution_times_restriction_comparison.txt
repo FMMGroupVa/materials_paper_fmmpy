@@ -1,7 +1,7 @@
 Restricted:
-Mean execution time over 5 runs: 0.5562 s
-Max time: 0.6183 s
+Mean execution time over 1 runs: 0.5367 s
+Max time: 0.5367 s
 
 Unrestricted:
-Mean execution time over 5 runs: 0.5933 s
-Max time: 0.5957 s
+Mean execution time over 1 runs: 0.5887 s
+Max time: 0.5887 s

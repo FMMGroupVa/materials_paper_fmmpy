@@ -8,11 +8,11 @@ The module is availible at:
 > Christian Canedo, Rocío Carratalá-Sáez, Cristina Rueda
 > [Submitted, 2025]
 
-This repository contains the source code and documentation for the PyFMM Python package, which implements the Frequency-Modulated Möbius (FMM) model for signal decomposition. The package includes tools for model fitting, parameter constraints, component analysis, and applications in biomedical and spectrographic data.
+This repository contains the source code and documentation for the `fmmpy` Python package, which implements the Frequency-Modulated Möbius (FMM) model for signal decomposition. 
 
 ## 📂 Reproducibility
-All instructions to reproduce the results and figures in the paper are included in the file `Artifact_description.pdf`.
-
+All instructions to reproduce the results and figures in the paper are included in the files `replication_script.py` and `Times_comparison.R`.
+The `replication_script.py` script runs a menu with different options to reproduce the different sections' results.
 
 ## 📄 Paper Status
-This repository accompanies the paper currently under review. Once accepted, the final reference and DOI will be added here.
+This repository accompanies the paper currently submitted. Once accepted, the final reference and DOI will be added here.

@@ -1,7 +1,7 @@
 AFD:
-Mean execution time over 1 runs: 0.0853 s
-Max time: 0.0853 s
+Mean execution time over 100 runs: 0.0883 s
+Max time: 0.1068 s
 
 FMM:
-Mean execution time over 1 runs: 0.0365 s
-Max time: 0.0365 s
+Mean execution time over 100 runs: 0.0455 s
+Max time: 1.0137 s

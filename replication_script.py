@@ -208,10 +208,10 @@ def test_2(N_REPEATS):
     
     # === Save ===
     results_df = pd.DataFrame(results)
-    results_df.to_csv('timing_results_repeated_nobs.csv', index=False)
+    results_df.to_csv('Results/timing_results_repeated_nobs.csv', index=False)
     
     # ========= Plot Generation =========
-    results_df = pd.read_csv('timing_results_repeated_nobs.csv')
+    results_df = pd.read_csv('Results/timing_results_repeated_nobs.csv')
     
     # ========= Plot 1 =========
     df_plot = results_df[

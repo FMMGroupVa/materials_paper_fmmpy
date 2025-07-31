@@ -148,7 +148,8 @@ def test_1():
                          dpi=300, width=2.8, height=2,
                          save_path="Results/Figures/Fe2p_comp_example_restr.png",
                          show=False)
-
+    print("\nPlots saved to 'Results/Figures/...'")
+    
 def test_2(N_REPEATS):
     print("\nRunning: 2. Scalability tests (Fig. 4).")
     
@@ -222,6 +223,7 @@ def test_2(N_REPEATS):
     # === Save ===
     results_df = pd.DataFrame(results)
     results_df.to_csv('Results/timing_results_repeated_nobs.csv', index=False)
+    print("\nResults saved to 'Results/timing_results_repeated_nobs.csv'")
     
     # ========= Plot Generation =========
     results_df = pd.read_csv('Results/timing_results_repeated_nobs.csv')
@@ -360,7 +362,9 @@ def test_2(N_REPEATS):
     plt.grid(True)
     
     plt.savefig('Results/Figures/times2.pdf', bbox_inches='tight')
-
+    
+    print("\nPlots saved to 'Results/Figures/...'")
+    
 def test_3(N_REPEATS):
     print("\n--Running: 3. AFD-FMM comparison.")
         
@@ -608,6 +612,8 @@ def test_5(N_REPEATS):
     df_results = pd.DataFrame(results)
     df_results.to_csv('Results/timing_XPS_both_experiments.csv', index=False)
     
+    print("\nResults saved to 'Results/timing_XPS_both_experiments.csv'")
+    
     results_df = pd.read_csv('Results/timing_XPS_both_experiments.csv')
     
     # === Filtrar SOLO las combinaciones del primer experimento ===
@@ -724,6 +730,8 @@ def test_5(N_REPEATS):
     plt.grid(True)
     plt.tight_layout()
     plt.savefig('Results/Figures/XPS_times2.pdf', dpi=300, transparent=True, bbox_inches='tight')
+    
+    print("\nPlots saved to 'Results/Figures/...'")
     
 def main():
     install_requirements('requirements.txt')

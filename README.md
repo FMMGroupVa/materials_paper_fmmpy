@@ -24,20 +24,22 @@ To reproduce the results in the paper, follow these steps from the root director
 **On Windows:**
 
 ```cmd
-
 python -m venv .venv
 call .venv\Scripts\activate
+```
 
 **On Unix:**
 
 ```cmd
 python3 -m venv .venv
 source .venv/bin/activate
+```
 
 ### 🐍 2. Run the replication script
 
 ```cmd
 python replication_script.py
+```
 
 
 ## 📄 Paper Status

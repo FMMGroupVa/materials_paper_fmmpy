@@ -1,3 +1,16 @@
+###############################################################################
+#
+#                                 ~READ~
+#
+# This script replicates the results of the paper 'fmmpy: A Python module for 
+#                             Frequency-Modulated Möbius Signal Decomposition'
+# 
+# * test_1() function replicates the use cases and all the code in the paper
+#   is include in that funcion (Section 4 of the paper)
+# 
+# * The rest of the funcion are time measurements (section 3 of the paper)
+#
+###############################################################################
 
 import os
 from pip._internal.cli.main import main as pip_main

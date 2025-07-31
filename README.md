@@ -41,6 +41,7 @@ source .venv/bin/activate
 python replication_script.py
 ```
 
+The required dependencies will be automatically checked and installed if necessary
 
 ## 📄 Paper Status
 This repository accompanies the paper currently submitted. Once accepted, the final reference and DOI will be added here.
